@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "expel-vertex-ai-chatbot"
+version = "0.1.0"
+description = "Interactive LLM chatbot powered by Google's models on Vertex AI"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    {name = "Bryan Young"},
+]
+keywords = ["llm", "chatbot", "vertex-ai", "google-cloud"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "google-genai>=1.27.0",
+    "python-dotenv>=1.1.1",
+    "rich>=14.1.0",
+    "prompt-toolkit>=3.0.51",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "isort>=5.0.0",
+    "flake8>=6.0.0",
+]
+
+[project.scripts]
+    expel-vertex-ai-chatbot = "main:main"
+
+[project.urls]
+Homepage = "https://github.com/bryanyoung/expel-vertex-ai-chatbot"
+Repository = "https://github.com/bryanyoung/expel-vertex-ai-chatbot"
+Issues = "https://github.com/bryanyoung/expel-vertex-ai-chatbot/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ['py39', 'py310', 'py311', 'py312']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
