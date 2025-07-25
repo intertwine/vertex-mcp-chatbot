@@ -105,17 +105,27 @@ You> /quit
 ## Project Structure
 
 ```
-gemini-local/
+vertex-ai-chatbot/
 ├── main.py              # Entry point
 ├── pyproject.toml       # Python project configuration and dependencies
+├── pytest.ini          # Pytest configuration
+├── run_tests.py         # Custom test runner script
 ├── .env.example        # Example environment file
 ├── .gitignore          # Git ignore rules
 ├── README.md           # This file
-└── src/
-    ├── __init__.py     # Package init
-    ├── config.py       # Configuration management
-    ├── gemini_client.py # Gemini/Vertex AI client wrapper
-    └── chatbot.py      # Interactive chatbot implementation
+├── src/
+│   ├── __init__.py     # Package init
+│   ├── config.py       # Configuration management
+│   ├── gemini_client.py # Gemini/Vertex AI client wrapper
+│   └── chatbot.py      # Interactive chatbot implementation
+└── tests/
+    ├── __init__.py     # Test package init
+    ├── conftest.py     # Pytest fixtures and configuration
+    ├── test_config.py  # Configuration tests
+    ├── test_gemini_client.py # Gemini client tests
+    ├── test_chatbot.py # Chatbot functionality tests
+    ├── test_main.py    # Main entry point tests
+    └── test_integration.py # Integration tests
 ```
 
 ## Configuration
@@ -152,14 +162,113 @@ Ensure:
 2. No firewall/proxy blocking access to Google Cloud
 3. Your service account is active and not expired
 
+## Testing
+
+This project includes a comprehensive test suite with 55+ tests covering all functionality.
+
+### Running Tests
+
+**Quick test run:**
+```bash
+# Install dev dependencies
+uv sync --extra dev
+
+# Run all tests
+uv run pytest tests/ -v
+```
+
+**Using the custom test runner:**
+```bash
+# Run all tests
+python run_tests.py
+
+# Run with verbose output
+python run_tests.py --verbose
+
+# Run with coverage report
+python run_tests.py --coverage
+
+# Run only unit tests
+python run_tests.py --unit
+
+# Run only integration tests
+python run_tests.py --integration
+
+# Run specific test files
+python run_tests.py tests/test_config.py tests/test_main.py
+```
+
+### Test Categories
+
+**Unit Tests (48 tests):**
+- `test_config.py` - Configuration management (6 tests)
+- `test_gemini_client.py` - Gemini API client functionality (11 tests)
+- `test_chatbot.py` - Interactive chatbot features (23 tests)
+- `test_main.py` - Main entry point and CLI (8 tests)
+
+**Integration Tests (7 tests):**
+- `test_integration.py` - Full system integration scenarios
+
+### Test Coverage
+
+The test suite covers:
+- ✅ **Configuration**: Environment variables, defaults, static methods
+- ✅ **API Client**: Initialization, chat sessions, message handling, error cases
+- ✅ **Chatbot UI**: Commands, history, display formatting, input validation
+- ✅ **CLI Interface**: Argument parsing, exception handling, lifecycle management
+- ✅ **Integration**: End-to-end workflows, component interactions
+- ✅ **Error Handling**: Network failures, API errors, user interrupts
+
+### Test Features
+
+- **Comprehensive mocking** - No external API calls during testing
+- **No hanging tests** - Properly handles infinite loops and user input
+- **Fixtures and utilities** - Reusable test components in `conftest.py`
+- **Multiple test runners** - Standard pytest and custom runner with options
+- **CI/CD ready** - Configured for automated testing pipelines
+
 ## Development
 
 To extend or modify the chatbot:
 
-1. The `GeminiClient` class in `src/gemini_client.py` handles all Vertex AI interactions
-2. The `GeminiChatbot` class in `src/chatbot.py` manages the UI and user interaction
-3. Add new commands by extending the `process_command` method
-4. Modify model parameters in the `Config` class
+### Architecture
+1. **`GeminiClient`** (`src/gemini_client.py`) - Handles all Vertex AI interactions
+2. **`GeminiChatbot`** (`src/chatbot.py`) - Manages UI and user interaction
+3. **`Config`** (`src/config.py`) - Centralized configuration management
+4. **`main.py`** - Entry point and CLI argument handling
+
+### Adding New Features
+1. **New Commands**: Extend the `process_command` method in `GeminiChatbot`
+2. **Model Parameters**: Modify settings in the `Config` class
+3. **API Features**: Add methods to `GeminiClient` class
+4. **UI Enhancements**: Update display methods in `GeminiChatbot`
+
+### Development Workflow
+```bash
+# Install dev dependencies
+uv sync --extra dev
+
+# Run tests during development
+uv run pytest tests/ -v --tb=short
+
+# Run tests with coverage
+python run_tests.py --coverage
+
+# Format code
+uv run black src/ tests/
+uv run isort src/ tests/
+
+# Lint code
+uv run flake8 src/ tests/
+```
+
+### Writing Tests
+When adding new functionality:
+1. Add unit tests for individual methods/functions
+2. Add integration tests for feature workflows
+3. Use the fixtures in `tests/conftest.py` for common mocking
+4. Follow the existing test patterns and naming conventions
+5. Ensure tests don't make external API calls
 
 ## Security Notes
 
