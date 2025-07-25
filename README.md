@@ -22,7 +22,8 @@ An interactive command-line chatbot powered by Google's Gemini LLM via Vertex AI
 
 1. Clone this repository:
 ```bash
-cd /Users/bryanyoung/experiments/gemini-local
+git clone https://github.com/expel-io/vertex-ai-chatbot.git
+cd vertex-ai-chatbot
 ```
 
 2. Install dependencies with uv (creates virtual environment automatically):
@@ -42,7 +43,7 @@ cp .env.example .env
 
 You can optionally edit `.env` to override default project settings:
 ```bash
-# GOOGLE_CLOUD_PROJECT='your-project-id'
+# GOOGLE_CLOUD_PROJECT='expel-engineering-prod'
 # GOOGLE_CLOUD_LOCATION='us-central1'
 ```
 
@@ -180,33 +181,33 @@ uv run pytest tests/ -v
 **Using the custom test runner:**
 ```bash
 # Run all tests
-python run_tests.py
+uv run python run_tests.py
 
 # Run with verbose output
-python run_tests.py --verbose
+uv run python run_tests.py --verbose
 
 # Run with coverage report
-python run_tests.py --coverage
+uv run python run_tests.py --coverage
 
 # Run only unit tests
-python run_tests.py --unit
+uv run python run_tests.py --unit
 
 # Run only integration tests
-python run_tests.py --integration
+uv run python run_tests.py --integration
 
 # Run specific test files
-python run_tests.py tests/test_config.py tests/test_main.py
+uv run python run_tests.py tests/test_config.py tests/test_main.py
 ```
 
 ### Test Categories
 
-**Unit Tests (48 tests):**
+**Unit Tests:**
 - `test_config.py` - Configuration management (6 tests)
 - `test_gemini_client.py` - Gemini API client functionality (11 tests)
 - `test_chatbot.py` - Interactive chatbot features (23 tests)
 - `test_main.py` - Main entry point and CLI (8 tests)
 
-**Integration Tests (7 tests):**
+**Integration Tests:**
 - `test_integration.py` - Full system integration scenarios
 
 ### Test Coverage
@@ -252,7 +253,7 @@ uv sync --extra dev
 uv run pytest tests/ -v --tb=short
 
 # Run tests with coverage
-python run_tests.py --coverage
+uv run python run_tests.py --coverage
 
 # Format code
 uv run black src/ tests/
