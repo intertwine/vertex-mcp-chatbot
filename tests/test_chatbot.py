@@ -65,16 +65,25 @@ class TestGeminiChatbot:
         # Check that error message was printed
         chatbot.console.print.assert_called()
     
+    @patch('src.chatbot.Console')
     @patch('src.chatbot.os.makedirs')
-    def test_display_response(self, mock_makedirs):
+    def test_display_response(self, mock_makedirs, mock_console_class):
         """Test displaying a response with formatting."""
         chatbot = GeminiChatbot()
         chatbot.console = Mock()
+        chatbot.console.size = Mock()
+        chatbot.console.size.width = 80
+        chatbot.console.size.height = 24
+        
+        # Mock the temporary console used for measuring content
+        mock_temp_console = Mock()
+        mock_temp_console.file = StringIO("Short content\nLine 2\n")
+        mock_console_class.return_value = mock_temp_console
         
         test_response = "This is a test response"
         chatbot.display_response(test_response)
         
-        # Should call print twice (panel and empty line)
+        # Should call print twice (panel and empty line) for short content
         assert chatbot.console.print.call_count == 2
     
     @patch('src.chatbot.os.makedirs')
@@ -99,12 +108,21 @@ class TestGeminiChatbot:
         
         chatbot.console.print.assert_called_with("[dim]No conversation history yet[/dim]")
     
+    @patch('src.chatbot.Console')
     @patch('src.chatbot.os.makedirs')
-    def test_display_history_with_content(self, mock_makedirs):
+    def test_display_history_with_content(self, mock_makedirs, mock_console_class):
         """Test displaying chat history with content."""
         chatbot = GeminiChatbot()
         chatbot.console = Mock()
+        chatbot.console.size = Mock()
+        chatbot.console.size.width = 80
+        chatbot.console.size.height = 24
         chatbot.client = Mock()
+        
+        # Mock the temporary console used for measuring content
+        mock_temp_console = Mock()
+        mock_temp_console.file = StringIO("Short history\nLine 2\n")
+        mock_console_class.return_value = mock_temp_console
         
         # Mock history items
         mock_item1 = Mock()
@@ -121,8 +139,8 @@ class TestGeminiChatbot:
         
         chatbot.display_history()
         
-        # Should print header and content for each item
-        assert chatbot.console.print.call_count >= 3
+        # Should print content for short history
+        assert chatbot.console.print.call_count >= 1
     
     @patch('src.chatbot.os.makedirs')
     def test_process_command_quit(self, mock_makedirs):

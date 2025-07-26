@@ -2,6 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
+from io import StringIO
 from src.chatbot import GeminiChatbot
 from src.gemini_client import GeminiClient
 from src.config import Config
@@ -89,6 +90,9 @@ class TestIntegration:
         # Create and initialize chatbot
         chatbot = GeminiChatbot()
         chatbot.console = Mock()
+        chatbot.console.size = Mock()
+        chatbot.console.size.width = 80
+        chatbot.console.size.height = 24
         chatbot.initialize()
         
         # Test getting history through the full stack
@@ -101,10 +105,15 @@ class TestIntegration:
         assert history[1].role == 'assistant'
         
         # Test displaying history
-        chatbot.display_history()
+        with patch('src.chatbot.Console') as mock_console_class:
+            mock_temp_console = Mock()
+            mock_temp_console.file = StringIO("Short history\nLine 2\n")
+            mock_console_class.return_value = mock_temp_console
+            
+            chatbot.display_history()
         
         # Verify console was called to display the history
-        assert chatbot.console.print.call_count >= 3  # Header + 2 items
+        assert chatbot.console.print.call_count >= 1
     
     @patch('src.gemini_client.genai.Client')
     @patch('src.chatbot.os.makedirs')
@@ -200,6 +209,9 @@ class TestIntegration:
         # Create and initialize chatbot
         chatbot = GeminiChatbot()
         chatbot.console = Mock()
+        chatbot.console.size = Mock()
+        chatbot.console.size.width = 80
+        chatbot.console.size.height = 24
         chatbot.initialize()
         
         # Initially no chat session

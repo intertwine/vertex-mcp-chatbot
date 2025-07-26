@@ -6,6 +6,7 @@ An interactive command-line chatbot powered by Google's Gemini LLM via Vertex AI
 
 - 🤖 **Interactive Chat Interface**: Clean, intuitive terminal UI with rich formatting
 - 📝 **Markdown Support**: Responses are rendered with proper markdown formatting
+- 📜 **Scrollable Content**: Long responses and conversation history automatically become scrollable with intuitive navigation controls
 - 💾 **Persistent History**: Conversation history saved between sessions
 - 🎨 **Rich Terminal UI**: Colorful, well-formatted output using Rich library
 - 🔧 **Multiple Models**: Support for different Gemini models (flash, pro)
@@ -31,12 +32,18 @@ cd vertex-ai-chatbot
 uv sync
 ```
 
-3. Authenticate with Google Cloud (Application Default Credentials):
+3. (Optional) Activate the virtual environment manually if needed:
+```bash
+source .venv/bin/activate
+```
+> **Note**: When using `uv run`, the virtual environment is automatically activated, so manual activation is typically not required.
+
+4. Authenticate with Google Cloud (Application Default Credentials):
 ```bash
 gcloud auth application-default login
 ```
 
-4. (Optional) Set up environment variables:
+5. (Optional) Set up environment variables:
 ```bash
 cp .env.example .env
 ```
@@ -62,6 +69,22 @@ Start with a different model:
 ```bash
 uv run main.py --model gemini-2.5-pro
 ```
+
+### Scrollable Content
+
+When responses or conversation history are too long for your terminal, the chatbot automatically switches to a scrollable view:
+
+**Navigation Controls:**
+- **↑/↓** or **j/k** - Scroll up/down line by line
+- **Home/g** - Jump to the top of the content
+- **End/G** - Jump to the bottom of the content
+- **q/Esc** - Exit scrollable view and return to chat
+
+**Features:**
+- Automatically detects when content exceeds terminal height
+- Works for both LLM responses and `/history` command
+- Preserves all markdown formatting and styling
+- Short content displays normally (no change in experience)
 
 ### Available Commands
 

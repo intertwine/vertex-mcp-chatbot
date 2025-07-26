@@ -6,11 +6,19 @@ from typing import Optional
 from prompt_toolkit import prompt
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.application import Application
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.layout.containers import HSplit, Window
+from prompt_toolkit.layout.controls import BufferControl
+from prompt_toolkit.layout.layout import Layout
+from prompt_toolkit.buffer import Buffer
+from prompt_toolkit.formatted_text import HTML
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.text import Text
 from rich import print as rprint
+from io import StringIO
 from .gemini_client import GeminiClient
 
 
@@ -40,8 +48,9 @@ class GeminiChatbot:
             sys.exit(1)
     
     def display_response(self, response: str):
-        """Display the model's response with formatting."""
-        # Use Markdown rendering for better formatting
+        """Display the model's response with formatting and scrolling capability."""
+        # First, render the response to a string buffer to measure its height
+        temp_console = Console(file=StringIO(), width=self.console.size.width)
         md = Markdown(response)
         panel = Panel(
             md,
@@ -49,8 +58,129 @@ class GeminiChatbot:
             border_style="cyan",
             padding=(1, 2)
         )
-        self.console.print(panel)
-        self.console.print()
+        temp_console.print(panel)
+        rendered_content = temp_console.file.getvalue()
+        
+        # Count the number of lines in the rendered content
+        content_lines = rendered_content.split('\n')
+        terminal_height = self.console.size.height
+        
+        # If content fits in terminal, display normally
+        if len(content_lines) <= terminal_height - 3:  # Leave space for prompt
+            self.console.print(panel)
+            self.console.print()
+        else:
+            # Use scrollable display for long content
+            self._display_scrollable_content(rendered_content, "Gemini Response")
+    
+    def _display_scrollable_content(self, rendered_content: str, title: str):
+        """Display content in a scrollable interface."""
+        lines = rendered_content.split('\n')
+        
+        # Create key bindings for scrolling
+        kb = KeyBindings()
+        
+        @kb.add('q')
+        @kb.add('escape')
+        def _(event):
+            "Exit the scrollable view"
+            event.app.exit()
+        
+        @kb.add('up')
+        @kb.add('k')
+        def _(event):
+            "Scroll up"
+            buffer = event.app.layout.current_buffer
+            if buffer.cursor_position > 0:
+                # Move cursor up by finding the previous line start
+                current_text = buffer.text
+                current_pos = buffer.cursor_position
+                prev_newline = current_text.rfind('\n', 0, current_pos - 1)
+                if prev_newline == -1:
+                    buffer.cursor_position = 0
+                else:
+                    prev_prev_newline = current_text.rfind('\n', 0, prev_newline - 1)
+                    buffer.cursor_position = prev_prev_newline + 1 if prev_prev_newline != -1 else 0
+        
+        @kb.add('down')
+        @kb.add('j')
+        def _(event):
+            "Scroll down"
+            buffer = event.app.layout.current_buffer
+            current_text = buffer.text
+            current_pos = buffer.cursor_position
+            next_newline = current_text.find('\n', current_pos)
+            if next_newline != -1:
+                next_next_newline = current_text.find('\n', next_newline + 1)
+                buffer.cursor_position = next_next_newline + 1 if next_next_newline != -1 else len(current_text)
+        
+        @kb.add('home')
+        @kb.add('g')
+        def _(event):
+            "Go to top"
+            event.app.layout.current_buffer.cursor_position = 0
+        
+        @kb.add('end')
+        @kb.add('G')
+        def _(event):
+            "Go to bottom"
+            buffer = event.app.layout.current_buffer
+            buffer.cursor_position = len(buffer.text)
+        
+        # Create buffer with the content
+        from prompt_toolkit.document import Document
+        buffer = Buffer(
+            document=Document(rendered_content),
+            read_only=True,
+        )
+        
+        # Create the layout
+        root_container = HSplit([
+            Window(
+                content=BufferControl(buffer=buffer),
+                height=None,
+                wrap_lines=True,
+            ),
+            Window(
+                content=BufferControl(
+                    buffer=Buffer(
+                        document=None,
+                        read_only=True,
+                    )
+                ),
+                height=1,
+                style='reverse',
+            ),
+        ])
+        
+        # Add help text to the bottom window
+        help_text = "↑/↓ or j/k: scroll | Home/g: top | End/G: bottom | q/Esc: exit"
+        help_buffer = Buffer(
+            document=Document(help_text),
+            read_only=True
+        )
+        root_container.children[1].content.buffer = help_buffer
+        
+        layout = Layout(root_container)
+        
+        # Create and run the application
+        app = Application(
+            layout=layout,
+            key_bindings=kb,
+            full_screen=True,
+            mouse_support=True,
+        )
+        
+        content_type = title.lower()
+        self.console.print(f"\n[dim]{title} is long. Opening scrollable view...[/dim]")
+        self.console.print("[dim]Use arrow keys or j/k to scroll, q/Esc to exit[/dim]\n")
+        
+        try:
+            app.run()
+        except KeyboardInterrupt:
+            pass
+        
+        self.console.print("[dim]Returned to chat[/dim]\n")
     
     def display_help(self):
         """Display help information."""
@@ -73,13 +203,39 @@ class GeminiChatbot:
         self.console.print(Markdown(help_text))
     
     def display_history(self):
-        """Display the conversation history."""
+        """Display the conversation history with scrolling capability."""
         history = self.client.get_chat_history()
         if not history:
             self.console.print("[dim]No conversation history yet[/dim]")
             return
         
-        self.console.print("[bold]Conversation History:[/bold]")
+        # Build the history content as a string first
+        history_content = self._build_history_content(history)
+        
+        # Render to measure height
+        temp_console = Console(file=StringIO(), width=self.console.size.width)
+        temp_console.print(history_content)
+        rendered_content = temp_console.file.getvalue()
+        
+        # Count lines and check if scrolling is needed
+        content_lines = rendered_content.split('\n')
+        terminal_height = self.console.size.height
+        
+        # If content fits in terminal, display normally
+        if len(content_lines) <= terminal_height - 3:  # Leave space for prompt
+            self.console.print(history_content)
+        else:
+            # Use scrollable display for long history
+            self._display_scrollable_content(rendered_content, "Conversation History")
+    
+    def _build_history_content(self, history):
+        """Build formatted history content as Rich markup."""
+        from rich.text import Text
+        
+        content = Text()
+        content.append("Conversation History:", style="bold")
+        content.append("\n")
+        
         for item in history:
             # Determine role from the item's role attribute or type
             if hasattr(item, 'role'):
@@ -89,14 +245,18 @@ class GeminiChatbot:
                 role = "You" if len([h for h in history[:history.index(item)+1] if getattr(h, 'role', None) == 'user']) % 2 == 1 else "Gemini"
             
             color = "green" if role == "You" else "cyan"
-            self.console.print(f"\n[bold {color}]{role}:[/bold {color}]")
+            content.append(f"\n{role}:", style=f"bold {color}")
+            content.append("\n")
             
             # Extract text from parts
             if hasattr(item, 'parts') and item.parts:
                 text = item.parts[0].text if hasattr(item.parts[0], 'text') else str(item.parts[0])
-                self.console.print(text)
+                content.append(text)
             else:
-                self.console.print(str(item))
+                content.append(str(item))
+            content.append("\n")
+        
+        return content
     
     def process_command(self, command: str) -> bool:
         """
