@@ -24,6 +24,7 @@ ENV/
 # Project specific
 .chat/
 *.log
+mcp_config.json
 
 # Distribution / packaging
 dist/

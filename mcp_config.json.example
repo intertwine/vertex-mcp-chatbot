@@ -1,0 +1,19 @@
+{
+  "servers": [
+    {
+      "name": "example-stdio-server",
+      "transport": "stdio",
+      "command": ["python", "path/to/mcp_server.py"]
+    },
+    {
+      "name": "example-http-server",
+      "transport": "http",
+      "url": "http://localhost:8000/mcp"
+    },
+    {
+      "name": "example-sse-server",
+      "transport": "sse",
+      "url": "http://localhost:8001/events"
+    }
+  ]
+}
