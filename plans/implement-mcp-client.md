@@ -319,8 +319,8 @@ The MCP client will be integrated as a new component that works alongside the ex
    - Implement stdio transport first
    - **Status**: MCP dependency added, Python version updated to 3.10+
 
-2. **Phase 2**: Integration with chat flow
-   - Tool execution within conversations
+2. **Phase 2**: Integration with chat flow *(IN PROGRESS)*
+   - Tool execution within conversations *(COMPLETE - Increment 1)*
    - Resource embedding in prompts
    - Prompt template usage
 
@@ -383,6 +383,121 @@ The MCP client will be integrated as a new component that works alongside the ex
 **Next Steps:**
 - Create `src/mcp_manager.py` for MCP client management
 - Add basic `/mcp` command structure to chatbot
+
+#### 2025-01-27 - MCP Manager Implementation
+**Completed:**
+- ✅ Created `src/mcp_manager.py` with `MCPManager` class:
+  - Manages multiple MCP client sessions and connections
+  - Uses AsyncExitStack for proper resource management (following official SDK pattern)
+  - Supports connecting/disconnecting servers
+  - Lists connected servers with status
+  - Gets tools, resources, and prompts from servers
+  - Executes tools and reads resources
+  - Provides synchronous wrapper methods for non-async contexts
+- ✅ Updated initial implementation approach based on official SDK examples:
+  - Changed from attempting to keep connections alive in async with blocks
+  - Adopted AsyncExitStack pattern from official chatbot example
+  - Proper lifecycle management with initialize() and cleanup() methods
+  - Stores both sessions and transport streams for proper tracking
+- ✅ Created `tests/test_mcp_manager.py` with 19 comprehensive tests:
+  - Manager initialization and cleanup
+  - Server connection/disconnection for different transports
+  - Tool, resource, and prompt discovery
+  - Tool execution and resource reading
+  - Error handling for various scenarios
+  - Sync wrapper method verification
+- ✅ Updated `tests/conftest.py` with MCP-specific fixtures:
+  - mock_mcp_config fixture
+  - mock_mcp_session fixture
+  - mock_mcp_manager fixture
+- ✅ All tests pass (107 total tests in project)
+- ✅ Code formatted and passes all linters
+
+**Implementation Notes:**
+- The MCPManager uses AsyncExitStack to properly manage async context managers
+- Connection lifecycle follows the pattern from the official SDK example
+- HTTP and SSE transports are not yet implemented (placeholder errors)
+- Sync wrappers use asyncio.run() for each operation to bridge sync/async
+
+**Next Steps:**
+- Add basic `/mcp` command structure to chatbot
+- Integrate MCPManager into the chatbot
+
+#### 2025-01-27 - Basic MCP Commands in Chatbot
+**Completed:**
+- ✅ Created 8 new tests in `tests/test_chatbot.py` for MCP command functionality:
+  - Test MCP manager initialization (success and failure scenarios)
+  - Test `/mcp connect <server>` command (success and error handling)
+  - Test `/mcp list` command with connected servers
+  - Test `/mcp disconnect <server>` command
+  - Test `/mcp` without subcommand (shows usage)
+  - Test MCP commands when MCP is not available
+- ✅ Updated `src/chatbot.py` to integrate MCP functionality:
+  - Added optional MCP imports with try/except for backwards compatibility
+  - Added `mcp_manager` initialization in `__init__` and `initialize()` methods
+  - Added `cleanup()` method to properly clean up MCP resources on exit
+  - Updated help text to include MCP command documentation
+  - Implemented `process_mcp_command()` with subcommands:
+    - `/mcp connect <server>` - Connect to an MCP server
+    - `/mcp list` - List configured servers and connection status
+    - `/mcp disconnect <server>` - Disconnect from an MCP server
+  - Added helper methods: `mcp_list_servers()`, `mcp_connect()`, `mcp_disconnect()`
+  - Added cleanup call in `run()` method before exit
+- ✅ Fixed all formatting issues with black formatter
+- ✅ Removed unused imports (HTML, Text, rprint)
+- ✅ All 116 tests pass
+- ✅ Code formatted and passes all linters
+
+**Implementation Notes:**
+- MCP support is optional - chatbot continues to work without MCP dependencies
+- MCP manager lifecycle properly managed with initialize/cleanup pattern
+- Sync wrapper methods used to bridge async MCP operations with sync chatbot interface
+- Error handling ensures MCP failures don't crash the chatbot
+- Help text only shows MCP commands when MCP is available
+
+**Phase 1 Status:** ✅ COMPLETE
+- Core MCP infrastructure is now in place
+- Basic connection management working
+- Command structure integrated into chatbot
+- Ready for Phase 2: Integration with chat flow
+
+### Phase 2: Integration with Chat Flow (IN PROGRESS)
+
+#### 2025-01-27 - Phase 2 Increment 1: Basic Tool Execution in Chat Flow
+**Completed:**
+- ✅ Added tool context formatting in `src/gemini_client.py`:
+  - New `format_tool_context()` method creates structured tool documentation
+  - Tool information automatically included in initial system message
+  - Each tool documented with name, description, and parameters
+- ✅ Implemented natural language tool detection and execution:
+  - `detect_tool_call()` method identifies when Gemini suggests tool usage
+  - Parses tool name and parameters from natural language responses
+  - No special syntax required - tools integrate seamlessly into conversation
+- ✅ Created tool execution flow in `src/chatbot.py`:
+  - `execute_mcp_tool()` method handles tool execution lifecycle
+  - Displays tool execution status to user
+  - Formats tool results and passes back to Gemini for interpretation
+  - Error handling for tool execution failures
+- ✅ Automatic tool discovery and integration:
+  - Tools from all connected MCP servers discovered automatically
+  - Tool context updated when servers connect/disconnect
+  - Gemini informed of available tools at conversation start
+- ✅ Created comprehensive tests:
+  - 8 new tests in `test_gemini_client.py` for tool context formatting
+  - 5 new tests in `test_chatbot.py` for tool execution flow
+  - Tests cover success cases, error handling, and edge cases
+
+**Design Decisions:**
+- **Natural Language Integration**: Tools are called through natural conversation, not special commands
+- **Automatic Discovery**: No manual tool registration - connect a server and tools are available
+- **Transparent Execution**: Users see when tools are executed and their results
+- **Context Preservation**: Tool results included in conversation history for context
+- **Error Resilience**: Tool failures don't crash the chat - errors handled gracefully
+
+**Next Steps:**
+- Implement resource access in chat flow
+- Add prompt template support
+- Enhance tool parameter parsing for complex types
 
 
 

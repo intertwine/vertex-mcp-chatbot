@@ -11,8 +11,9 @@ An interactive command-line chatbot powered by Google's Gemini LLM via Vertex AI
 - 🎨 **Rich Terminal UI**: Colorful, well-formatted output using Rich library
 - 🔧 **Multiple Models**: Support for different Gemini models (flash, pro)
 - 📋 **Command System**: Built-in commands for managing your chat session
+- 🔌 **MCP Tool Integration**: When MCP servers are connected, their tools are automatically available to Gemini during conversations
 
-> **Note**: Model Context Protocol (MCP) integration is currently in progress, which will enable the chatbot to connect to external tools and data sources.
+> **Note**: Model Context Protocol (MCP) integration is currently in progress. Basic tool execution is now working, with more features coming soon.
 
 ## Prerequisites
 
@@ -98,6 +99,21 @@ While chatting, you can use these commands:
 - `/model` - Show which Gemini model you're using
 - `/prune` - Clear local command history (with confirmation)
 - `/quit` or `/exit` - Exit the chatbot
+
+**MCP Commands** (when MCP is available):
+- `/mcp connect <server>` - Connect to an MCP server from your config
+- `/mcp list` - Show configured servers and their connection status
+- `/mcp disconnect <server>` - Disconnect from an MCP server
+
+### MCP Tool Integration
+
+When MCP servers are connected, their tools become automatically available during conversations. Gemini will intelligently use these tools when appropriate to help answer your questions or perform tasks. You don't need to use special syntax - just chat naturally and Gemini will:
+
+- Recognize when a tool would be helpful
+- Execute the appropriate tool with the right parameters
+- Include the tool results in its response
+
+For example, if you have a weather MCP server connected and ask "What's the weather like?", Gemini will automatically use the weather tool to get current conditions.
 
 ### Example Session
 
