@@ -297,6 +297,31 @@ class MCPManager:
         session = self._sessions[server_name]
         return await session.read_resource(resource_uri)
 
+    async def get_prompt(
+        self,
+        server_name: str,
+        prompt_name: str,
+        arguments: Dict[str, Any] = None,
+    ) -> Dict[str, Any]:
+        """Get a specific prompt from a server.
+
+        Args:
+            server_name: Name of the server
+            prompt_name: Name of the prompt to get
+            arguments: Optional arguments for the prompt
+
+        Returns:
+            Prompt result with messages
+
+        Raises:
+            MCPManagerError: If server is not connected
+        """
+        if server_name not in self._sessions:
+            raise MCPManagerError(f"Server '{server_name}' is not connected")
+
+        session = self._sessions[server_name]
+        return await session.get_prompt(prompt_name, arguments=arguments or {})
+
     # Synchronous wrapper methods for use in non-async context
     # These create a new event loop for each operation
 
@@ -345,3 +370,14 @@ class MCPManager:
     ) -> Dict[str, Any]:
         """Synchronous wrapper for read_resource."""
         return asyncio.run(self.read_resource(server_name, resource_uri))
+
+    def get_prompt_sync(
+        self,
+        server_name: str,
+        prompt_name: str,
+        arguments: Dict[str, Any] = None,
+    ) -> Dict[str, Any]:
+        """Synchronous wrapper for get_prompt."""
+        return asyncio.run(
+            self.get_prompt(server_name, prompt_name, arguments)
+        )

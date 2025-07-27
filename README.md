@@ -105,6 +105,8 @@ While chatting, you can use these commands:
 - `/mcp list` - Show configured servers and their connection status
 - `/mcp disconnect <server>` - Disconnect from an MCP server
 - `/mcp resources` - Show available resources from all connected servers
+- `/mcp prompts` - List available prompt templates from all connected servers
+- `/mcp prompt <name>` - Use a specific prompt template
 
 ### MCP Tool Integration
 
@@ -131,6 +133,31 @@ You> Can you analyze the data in file:///home/user/sales_report.csv?
 
 [The chatbot automatically reads the CSV file and includes its content in the prompt to Gemini, 
 who can then analyze and discuss the data]
+```
+
+### MCP Prompt Templates
+
+MCP servers can provide prompt templates that help structure interactions for specific tasks. These templates make it easy to perform complex operations with consistent formatting:
+
+- **List Templates**: Use `/mcp prompts` to see all available templates
+- **Use a Template**: Use `/mcp prompt <template_name>` to apply a template
+- **Interactive Arguments**: The chatbot will prompt you for any required template arguments
+- **Seamless Processing**: Filled templates are sent directly to Gemini for processing
+
+**Example:**
+```
+You> /mcp prompts
+Available prompts from code-analyzer:
+  - analyze_function: Analyze a function for complexity and suggest improvements
+  - review_pr: Review pull request changes and provide feedback
+  - explain_code: Explain how a piece of code works in simple terms
+
+You> /mcp prompt analyze_function
+Enter value for 'function_name': calculateTotalPrice
+Enter value for 'context': This function processes shopping cart items
+
+[The template is filled with your values and sent to Gemini, who provides
+a detailed analysis of the function based on the structured prompt]
 ```
 
 ### Example Session

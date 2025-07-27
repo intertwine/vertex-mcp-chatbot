@@ -249,6 +249,8 @@ class GeminiChatbot:
 - **/mcp connect <server>** - Connect to an MCP server
 - **/mcp list** - List configured servers and connection status
 - **/mcp resources** - List available resources from connected servers
+- **/mcp prompts** - List available prompt templates
+- **/mcp prompt <name> [args]** - Use a prompt template (e.g., /mcp prompt analyze_code language=python)
 - **/mcp disconnect <server>** - Disconnect from an MCP server
 
 # Tips
@@ -382,6 +384,12 @@ class GeminiChatbot:
             self.console.print("  /mcp list - List servers and status")
             self.console.print("  /mcp resources - List available resources")
             self.console.print(
+                "  /mcp prompts - List available prompt templates"
+            )
+            self.console.print(
+                "  /mcp prompt <name> [args] - Use a prompt template"
+            )
+            self.console.print(
                 "  /mcp disconnect <server> - Disconnect from a server"
             )
             return
@@ -398,6 +406,13 @@ class GeminiChatbot:
             self.mcp_disconnect(server_name)
         elif subcommand == "resources":
             self.mcp_list_resources()
+        elif subcommand == "prompts":
+            self.mcp_list_prompts()
+        elif subcommand == "prompt" and len(parts) > 2:
+            prompt_name = parts[2]
+            # Parse any arguments after the prompt name
+            args_str = " ".join(parts[3:]) if len(parts) > 3 else ""
+            self.mcp_use_prompt(prompt_name, args_str)
         else:
             self.console.print(f"[red]Invalid MCP command: {command}[/red]")
             self.console.print("[dim]Type '/mcp' for usage[/dim]")
@@ -475,6 +490,81 @@ class GeminiChatbot:
 
         except Exception as e:
             self.console.print(f"[red]❌ Failed to list resources: {e}[/red]")
+
+    def mcp_list_prompts(self):
+        """List available MCP prompt templates."""
+        servers = self.mcp_manager.list_servers()
+        connected_servers = [s for s in servers if s["connected"]]
+
+        if not connected_servers:
+            self.console.print("[dim]No MCP servers connected[/dim]")
+            return
+
+        try:
+            prompts = self.mcp_manager.get_prompts_sync()
+
+            if not prompts:
+                self.console.print(
+                    "[dim]No prompts available from connected servers[/dim]"
+                )
+                return
+
+            self.console.print("\n[bold]MCP Prompt Templates:[/bold]")
+            for prompt in prompts:
+                server = prompt.get("server", "unknown")
+                name = prompt.get("name", "Unnamed")
+                desc = prompt.get("description", "No description")
+                args = prompt.get("arguments", [])
+
+                self.console.print(f"\n• {name} (from {server})")
+                self.console.print(f"  Description: {desc}")
+
+                if args:
+                    self.console.print("  Arguments:")
+                    for arg in args:
+                        arg_name = arg.get("name", "unnamed")
+                        arg_desc = arg.get("description", "")
+                        required = arg.get("required", False)
+                        req_text = " [required]" if required else " [optional]"
+                        self.console.print(
+                            f"    - {arg_name}{req_text}: {arg_desc}"
+                        )
+            self.console.print()
+
+        except Exception as e:
+            self.console.print(f"[red]❌ Failed to list prompts: {e}[/red]")
+
+    def mcp_use_prompt(self, prompt_name: str, args_str: str):
+        """Use an MCP prompt template."""
+        # Find which server provides this prompt
+        server_name = self._find_prompt_server(prompt_name)
+
+        if not server_name:
+            self.console.print(
+                f"[red]Prompt '{prompt_name}' not found in connected servers[/red]"
+            )
+            return
+
+        # Parse arguments
+        arguments = self._parse_prompt_args(args_str)
+
+        try:
+            # Get the prompt with arguments
+            with self.console.status(
+                f"[dim]Loading prompt '{prompt_name}'...[/dim]"
+            ):
+                prompt_result = self.mcp_manager.get_prompt_sync(
+                    server_name, prompt_name, arguments
+                )
+
+            # Format the prompt for Gemini
+            prompt_text = self._format_prompt_for_gemini(prompt_result)
+
+            # Process as a chat message
+            self._process_chat_message(prompt_text)
+
+        except Exception as e:
+            self.console.print(f"[red]❌ Failed to use prompt: {e}[/red]")
 
     def prune_command_history(self):
         """Clear the local command history file with confirmation."""
@@ -718,6 +808,107 @@ class GeminiChatbot:
 
         except Exception as e:
             return f"Error reading resource '{resource_uri}': {str(e)}"
+
+    def _find_prompt_server(self, prompt_name: str) -> Optional[str]:
+        """Find which server provides a specific prompt."""
+        if not self.mcp_manager:
+            return None
+
+        try:
+            prompts = self.mcp_manager.get_prompts_sync()
+            for prompt in prompts:
+                if prompt.get("name") == prompt_name:
+                    return prompt.get("server")
+            return None
+        except Exception:
+            return None
+
+    def _parse_prompt_args(self, args_str: str) -> Dict[str, Any]:
+        """Parse prompt arguments from a string.
+
+        Supports formats like:
+        - arg1=value1 arg2=value2
+        - name="John Doe" age=30
+        """
+        import shlex
+
+        if not args_str.strip():
+            return {}
+
+        arguments = {}
+        try:
+            # Use shlex to handle quoted strings properly
+            parts = shlex.split(args_str)
+            for part in parts:
+                if "=" in part:
+                    key, value = part.split("=", 1)
+                    arguments[key] = value
+        except Exception:
+            # If parsing fails, return empty dict
+            pass
+
+        return arguments
+
+    def _format_prompt_for_gemini(self, prompt_result: Dict[str, Any]) -> str:
+        """Format MCP prompt messages for Gemini.
+
+        Extracts user messages from the prompt result and formats them
+        as a single message for Gemini.
+        """
+        messages = prompt_result.get("messages", [])
+
+        # Extract text from user messages
+        user_texts = []
+        for msg in messages:
+            if msg.get("role") == "user":
+                content = msg.get("content", {})
+                if isinstance(content, dict) and content.get("type") == "text":
+                    user_texts.append(content.get("text", ""))
+                elif isinstance(content, str):
+                    user_texts.append(content)
+
+        # Join all user texts into a single message
+        return "\n\n".join(user_texts) if user_texts else ""
+
+    def _suggest_prompts_for_query(self, query: str) -> List[Dict[str, Any]]:
+        """Suggest relevant prompts based on user query.
+
+        Returns a list of prompts that might be relevant to the query.
+        """
+        if not self.mcp_manager:
+            return []
+
+        try:
+            all_prompts = self.mcp_manager.get_prompts_sync()
+
+            # Simple keyword matching for now
+            query_lower = query.lower()
+            relevant_prompts = []
+
+            for prompt in all_prompts:
+                name = prompt.get("name", "").lower()
+                desc = prompt.get("description", "").lower()
+
+                # Check if any keywords from the query appear in name or description
+                keywords = [
+                    "analyze",
+                    "code",
+                    "error",
+                    "explain",
+                    "summarize",
+                    "help",
+                ]
+                for keyword in keywords:
+                    if keyword in query_lower and (
+                        keyword in name or keyword in desc
+                    ):
+                        relevant_prompts.append(prompt)
+                        break
+
+            return relevant_prompts[:3]  # Return top 3 suggestions
+
+        except Exception:
+            return []
 
     def _process_chat_message(self, user_input: str):
         """Process a chat message with potential MCP tool and resource integration."""

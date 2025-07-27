@@ -529,10 +529,50 @@ The MCP client will be integrated as a new component that works alongside the ex
 - **Multiple Resources**: Users can reference multiple resources in a single message
 - **Error Handling**: Failed resource reads show clear error messages without breaking the chat flow
 
-**Phase 2 Status:** ✅ COMPLETE (2 of 3 increments)
+**Next Steps:**
+- Implement prompt template support
+- Add `/mcp prompt` command for using templates
+
+#### 2025-01-27 - Phase 2 Increment 3: Prompt Template Usage
+**Completed:**
+- ✅ Added `/mcp prompts` command in `src/chatbot.py`:
+  - Lists all available prompt templates from connected MCP servers
+  - Shows prompt names and descriptions grouped by server
+  - Displays template content preview when available
+- ✅ Added `/mcp prompt <prompt_name>` command:
+  - Retrieves and formats a specific prompt template
+  - Parses prompt arguments and prompts user for values
+  - Substitutes argument values into the template
+  - Sends the formatted prompt to Gemini for processing
+- ✅ Implemented prompt template parsing and formatting:
+  - `parse_prompt_arguments()` method extracts argument placeholders from templates
+  - `format_prompt_template()` method substitutes user-provided values
+  - Supports various placeholder formats (e.g., `{arg}`, `{{arg}}`, `<arg>`)
+- ✅ Added `get_prompt()` method to MCPManager:
+  - Retrieves specific prompt templates by name
+  - Searches across all connected servers
+  - Returns prompt metadata and template content
+- ✅ Created comprehensive tests:
+  - 4 new tests in `test_chatbot.py` for prompt commands
+  - Tests cover listing prompts, using templates, and error handling
+  - Verified argument parsing and template formatting
+
+**Design Decisions:**
+- **Simple Command Interface**: `/mcp prompts` to list, `/mcp prompt <name>` to use
+- **Interactive Argument Collection**: Prompts user for each template argument
+- **Flexible Placeholder Support**: Works with common template formats
+- **Server Agnostic**: Searches all servers for the requested prompt
+- **Seamless Integration**: Formatted prompts sent directly to Gemini
+
+**Phase 2 Status:** ✅ COMPLETE
 - Tool execution in chat flow ✅
-- Resource embedding in prompts ✅
-- Prompt template usage (pending)
+- Resource embedding in prompts ✅ 
+- Prompt template usage ✅
+
+All three increments of Phase 2 are now complete. The chatbot can:
+1. Execute MCP tools naturally during conversations
+2. Automatically read and embed MCP resources when referenced
+3. Use MCP prompt templates to enhance interactions
 
 
 
