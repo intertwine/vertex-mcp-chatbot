@@ -8,6 +8,7 @@ from src.chatbot import GeminiChatbot
 class TestMCPPrompts:
     """Test MCP prompt template integration."""
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     @patch("src.chatbot.os.makedirs")
     def test_mcp_prompts_command(self, mock_makedirs):
         """Test /mcp prompts command."""

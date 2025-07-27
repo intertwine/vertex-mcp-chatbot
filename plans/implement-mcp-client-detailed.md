@@ -619,5 +619,53 @@ All three increments of Phase 2 are now complete. The chatbot can:
 - Add connection retry logic
 - Implement multi-server coordination features
 
+#### 2025-01-27 - Phase 3 Increment 2: Multi-server Coordination
+**Completed:**
+- ✅ Created `tests/test_mcp_multi_server.py` with 13 comprehensive tests:
+  - Tool name conflict resolution with server priorities
+  - Server priority configuration handling
+  - Parallel tool/resource/prompt discovery across servers
+  - Server-specific tool execution
+  - Error isolation between servers
+  - Resource namespace separation
+  - Finding all servers with a specific tool
+  - Broadcasting operations to all servers
+  - Synchronous wrapper methods
+- ✅ Enhanced `src/mcp_manager.py` with multi-server coordination features:
+  - `find_best_server_for_tool()` - Selects best server based on priority
+  - `find_servers_with_tool()` - Lists all servers providing a tool
+  - `get_server_priorities()` - Retrieves configured server priorities
+  - `broadcast_operation()` - Runs operations on all servers in parallel
+  - Parallel execution in `get_tools()`, `get_resources()`, `get_prompts()`
+  - Error isolation with `_safe_call()` helper methods
+  - Added sync wrappers for all new async methods
+- ✅ Updated `src/chatbot.py` to use server priority for tool selection:
+  - Modified `_find_tool_server()` to use `find_best_server_for_tool_sync()`
+  - Added `/mcp tools` command showing tool conflicts and priorities
+  - Enhanced tool display to show which servers provide each tool
+- ✅ Fixed test failures in `test_mcp_chat_integration.py`:
+  - Updated mocks to use new `find_best_server_for_tool_sync()` method
+  - Fixed asyncio.Future creation outside event loop issue
+- ✅ All 164 tests passing
+- ✅ Code formatted and linted
+
+**Technical Implementation:**
+- **Server Priority System**: Lower numbers = higher priority (1 > 2 > no priority)
+- **Conflict Resolution**: When multiple servers provide same tool, highest priority wins
+- **Parallel Operations**: Uses `asyncio.gather()` for concurrent server queries
+- **Error Isolation**: Failures in one server don't affect others
+- **Tool Namespacing**: Each tool tagged with its source server
+
+**Design Decisions:**
+- **Priority-based Selection**: Simple numeric priority system for predictable behavior
+- **Automatic Conflict Resolution**: No user intervention needed for tool conflicts
+- **Performance Optimization**: Parallel queries reduce latency with multiple servers
+- **Fault Tolerance**: Individual server failures don't break the system
+- **Transparent Operation**: Users can see which server provides each tool
+
+**Next Steps:**
+- Implement OAuth authentication support
+- Add connection retry logic with exponential backoff
+
 
 

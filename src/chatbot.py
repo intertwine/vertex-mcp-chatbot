@@ -368,6 +368,7 @@ class GeminiChatbot:
             self.console.print("[bold]MCP Commands:[/bold]")
             self.console.print("  /mcp connect <server> - Connect to a server")
             self.console.print("  /mcp list - List servers and status")
+            self.console.print("  /mcp tools - List available tools")
             self.console.print("  /mcp resources - List available resources")
             self.console.print("  /mcp prompts - List available prompt templates")
             self.console.print("  /mcp prompt <name> [args] - Use a prompt template")
@@ -384,6 +385,8 @@ class GeminiChatbot:
         elif subcommand == "disconnect" and len(parts) > 2:
             server_name = parts[2]
             self.mcp_disconnect(server_name)
+        elif subcommand == "tools":
+            self.mcp_list_tools()
         elif subcommand == "resources":
             self.mcp_list_resources()
         elif subcommand == "prompts":
@@ -431,6 +434,79 @@ class GeminiChatbot:
             )
         except Exception as e:
             self.console.print(f"[red]❌ Failed to disconnect: {e}[/red]")
+
+    def mcp_list_tools(self):
+        """List available MCP tools from all connected servers."""
+        servers = self.mcp_manager.list_servers()
+        connected_servers = [s for s in servers if s["connected"]]
+
+        if not connected_servers:
+            self.console.print("[dim]No MCP servers connected[/dim]")
+            return
+
+        try:
+            tools = self.mcp_manager.get_tools_sync()
+
+            if not tools:
+                self.console.print(
+                    "[dim]No tools available from connected servers[/dim]"
+                )
+                return
+
+            # Group tools by name to identify conflicts
+            tools_by_name = {}
+            for tool in tools:
+                tool_name = tool["name"]
+                if tool_name not in tools_by_name:
+                    tools_by_name[tool_name] = []
+                tools_by_name[tool_name].append(tool)
+
+            self.console.print("\n[bold]MCP Tools:[/bold]")
+            
+            # Show each tool, indicating server conflicts
+            for tool_name, tool_instances in sorted(tools_by_name.items()):
+                if len(tool_instances) == 1:
+                    # Single server provides this tool
+                    tool = tool_instances[0]
+                    self.console.print(
+                        f"\n• {tool_name} (from {tool['server']})"
+                    )
+                    self.console.print(
+                        f"  Description: {tool.get('description', 'No description')}"
+                    )
+                else:
+                    # Multiple servers provide this tool
+                    self.console.print(
+                        f"\n• {tool_name} [yellow](available from multiple servers)[/yellow]"
+                    )
+                    
+                    # Get server priorities
+                    priorities = self.mcp_manager.get_server_priorities()
+                    
+                    # Sort by priority
+                    sorted_instances = sorted(
+                        tool_instances,
+                        key=lambda t: priorities.get(t["server"], float("inf"))
+                    )
+                    
+                    # Show each server's version
+                    for i, tool in enumerate(sorted_instances):
+                        priority = priorities.get(tool["server"], float("inf"))
+                        priority_text = f" [green](priority {priority})[/green]" if priority != float("inf") else ""
+                        prefix = "  → " if i == 0 else "    "
+                        self.console.print(
+                            f"{prefix}{tool['server']}{priority_text}: {tool.get('description', 'No description')}"
+                        )
+                    
+                    if sorted_instances:
+                        self.console.print(
+                            f"  [dim]Will use: {sorted_instances[0]['server']}[/dim]"
+                        )
+            
+            self.console.print()
+
+        except Exception as e:
+            self.console.print(f"[red]❌ Failed to list tools: {e}[/red]")
 
     def mcp_list_resources(self):
         """List available MCP resources."""
@@ -647,16 +723,17 @@ class GeminiChatbot:
         return tool_name, arguments if arguments else {}
 
     def _find_tool_server(self, tool_name: str) -> Optional[str]:
-        """Find which server provides a specific tool."""
+        """Find which server provides a specific tool.
+        
+        Uses server priority to select the best server when multiple
+        servers provide the same tool.
+        """
         if not self.mcp_manager:
             return None
 
         try:
-            tools = self.mcp_manager.get_tools_sync()
-            for tool in tools:
-                if tool["name"] == tool_name:
-                    return tool.get("server")
-            return None
+            # Use the new find_best_server_for_tool method
+            return self.mcp_manager.find_best_server_for_tool_sync(tool_name)
         except Exception:
             return None
 

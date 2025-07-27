@@ -171,6 +171,11 @@ class TestMCPChatIntegration:
             return_value="I'll check the weather for you. Let me use the get_weather tool for New York."
         )
 
+        # Mock finding the best server for the tool
+        chatbot.mcp_manager.find_best_server_for_tool_sync = Mock(
+            return_value="test-server"
+        )
+
         # Mock tool execution
         chatbot.mcp_manager.call_tool_sync = Mock(
             return_value={
@@ -185,6 +190,11 @@ class TestMCPChatIntegration:
 
         # Process message
         chatbot._process_chat_message("What's the weather in New York?")
+
+        # Verify best server was found
+        chatbot.mcp_manager.find_best_server_for_tool_sync.assert_called_once_with(
+            "get_weather"
+        )
 
         # Verify tool was executed
         chatbot.mcp_manager.call_tool_sync.assert_called_once_with(
@@ -201,11 +211,13 @@ class TestMCPChatIntegration:
         """Test finding which server provides a specific tool."""
         chatbot = GeminiChatbot()
         chatbot.mcp_manager = Mock()
-        chatbot.mcp_manager.get_tools_sync = Mock(
-            return_value=[
-                {"name": "get_weather", "server": "weather-server"},
-                {"name": "calculate", "server": "math-server"},
-            ]
+        
+        # Mock the find_best_server_for_tool_sync method
+        chatbot.mcp_manager.find_best_server_for_tool_sync = Mock(
+            side_effect=lambda tool_name: {
+                "get_weather": "weather-server",
+                "calculate": "math-server",
+            }.get(tool_name, None)
         )
 
         assert chatbot._find_tool_server("get_weather") == "weather-server"

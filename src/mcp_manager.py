@@ -1,6 +1,7 @@
 """MCP client manager module."""
 
 import asyncio
+import logging
 from contextlib import AsyncExitStack
 from typing import Dict, List, Any, Optional, Tuple
 
@@ -18,6 +19,8 @@ except ImportError:
     HTTP_TRANSPORT_AVAILABLE = False
 
 from .mcp_config import MCPConfig
+
+logger = logging.getLogger(__name__)
 
 
 class MCPManagerError(Exception):
@@ -281,18 +284,43 @@ class MCPManager:
 
             session = self._sessions[server_name]
             result = await session.list_tools()
-            return result.get("tools", [])
+            tools = result.get("tools", [])
+            # Add server name to each tool
+            for tool in tools:
+                tool["server"] = server_name
+            return tools
         else:
-            # Get tools from all connected servers
-            all_tools = []
+            # Get tools from all connected servers in parallel
+            tasks = []
+            server_names = []
+            
             for name, session in self._sessions.items():
-                result = await session.list_tools()
-                tools = result.get("tools", [])
-                # Add server name to each tool
-                for tool in tools:
-                    tool["server"] = name
-                all_tools.extend(tools)
+                tasks.append(self._get_tools_safe(session))
+                server_names.append(name)
+            
+            # Execute all tasks in parallel
+            results = await asyncio.gather(*tasks)
+            
+            # Combine results with server names
+            all_tools = []
+            for server_name, result in zip(server_names, results):
+                if result is not None:
+                    tools = result.get("tools", [])
+                    # Add server name to each tool
+                    for tool in tools:
+                        tool["server"] = server_name
+                    all_tools.extend(tools)
+            
             return all_tools
+    
+    async def _get_tools_safe(self, session: ClientSession) -> Optional[Dict[str, Any]]:
+        """Safely get tools from a session, returning None on error."""
+        try:
+            return await session.list_tools()
+        except Exception as e:
+            # Log error but don't propagate - error isolation
+            logger.warning(f"Failed to get tools from server: {e}")
+            return None
 
     async def get_resources(
         self, server_name: Optional[str] = None
@@ -316,16 +344,37 @@ class MCPManager:
             result = await session.list_resources()
             return result.get("resources", [])
         else:
-            # Get resources from all connected servers
-            all_resources = []
+            # Get resources from all connected servers in parallel
+            tasks = []
+            server_names = []
+            
             for name, session in self._sessions.items():
-                result = await session.list_resources()
-                resources = result.get("resources", [])
-                # Add server name to each resource
-                for resource in resources:
-                    resource["server"] = name
-                all_resources.extend(resources)
+                tasks.append(self._get_resources_safe(session))
+                server_names.append(name)
+            
+            # Execute all tasks in parallel
+            results = await asyncio.gather(*tasks)
+            
+            # Combine results with server names
+            all_resources = []
+            for server_name, result in zip(server_names, results):
+                if result is not None:
+                    resources = result.get("resources", [])
+                    # Add server name to each resource
+                    for resource in resources:
+                        resource["server"] = server_name
+                    all_resources.extend(resources)
+            
             return all_resources
+    
+    async def _get_resources_safe(self, session: ClientSession) -> Optional[Dict[str, Any]]:
+        """Safely get resources from a session, returning None on error."""
+        try:
+            return await session.list_resources()
+        except Exception as e:
+            # Log error but don't propagate - error isolation
+            logger.warning(f"Failed to get resources from server: {e}")
+            return None
 
     async def get_prompts(
         self, server_name: Optional[str] = None
@@ -349,16 +398,37 @@ class MCPManager:
             result = await session.list_prompts()
             return result.get("prompts", [])
         else:
-            # Get prompts from all connected servers
-            all_prompts = []
+            # Get prompts from all connected servers in parallel
+            tasks = []
+            server_names = []
+            
             for name, session in self._sessions.items():
-                result = await session.list_prompts()
-                prompts = result.get("prompts", [])
-                # Add server name to each prompt
-                for prompt in prompts:
-                    prompt["server"] = name
-                all_prompts.extend(prompts)
+                tasks.append(self._get_prompts_safe(session))
+                server_names.append(name)
+            
+            # Execute all tasks in parallel
+            results = await asyncio.gather(*tasks)
+            
+            # Combine results with server names
+            all_prompts = []
+            for server_name, result in zip(server_names, results):
+                if result is not None:
+                    prompts = result.get("prompts", [])
+                    # Add server name to each prompt
+                    for prompt in prompts:
+                        prompt["server"] = server_name
+                    all_prompts.extend(prompts)
+            
             return all_prompts
+    
+    async def _get_prompts_safe(self, session: ClientSession) -> Optional[Dict[str, Any]]:
+        """Safely get prompts from a session, returning None on error."""
+        try:
+            return await session.list_prompts()
+        except Exception as e:
+            # Log error but don't propagate - error isolation
+            logger.warning(f"Failed to get prompts from server: {e}")
+            return None
 
     async def call_tool(
         self, server_name: str, tool_name: str, arguments: Dict[str, Any]
@@ -439,20 +509,6 @@ class MCPManager:
         """Synchronous wrapper for cleanup."""
         asyncio.run(self.cleanup())
 
-    def _get_session_id(self, server_name: str) -> Optional[str]:
-        """Get the session ID for an HTTP server.
-
-        Args:
-            server_name: Name of the server
-
-        Returns:
-            Session ID if available, None otherwise
-        """
-        callback = self._session_id_callbacks.get(server_name)
-        if callback:
-            return callback()
-        return None
-
     def connect_server_sync(self, server_name: str) -> None:
         """Synchronous wrapper for connect_server."""
         asyncio.run(self.connect_server(server_name))
@@ -495,3 +551,128 @@ class MCPManager:
     ) -> Dict[str, Any]:
         """Synchronous wrapper for get_prompt."""
         return asyncio.run(self.get_prompt(server_name, prompt_name, arguments))
+
+    def _get_session_id(self, server_name: str) -> Optional[str]:
+        """Get the session ID for an HTTP server.
+
+        Args:
+            server_name: Name of the server
+
+        Returns:
+            Session ID if available, None otherwise
+        """
+        callback = self._session_id_callbacks.get(server_name)
+        if callback:
+            return callback()
+        return None
+
+    # Multi-server coordination methods
+
+    async def find_best_server_for_tool(self, tool_name: str) -> Optional[str]:
+        """Find the best server for a specific tool based on priority.
+
+        Args:
+            tool_name: Name of the tool to find
+
+        Returns:
+            Name of the best server, or None if tool not found
+        """
+        servers_with_tool = await self.find_servers_with_tool(tool_name)
+        if not servers_with_tool:
+            return None
+
+        # Get server priorities
+        priorities = self.get_server_priorities()
+
+        # Sort servers by priority (lower number = higher priority)
+        sorted_servers = sorted(
+            servers_with_tool,
+            key=lambda s: priorities.get(s, float("inf"))
+        )
+
+        return sorted_servers[0] if sorted_servers else None
+
+    async def find_servers_with_tool(self, tool_name: str) -> List[str]:
+        """Find all servers that have a specific tool.
+
+        Args:
+            tool_name: Name of the tool to find
+
+        Returns:
+            List of server names that have the tool
+        """
+        servers_with_tool = []
+        
+        # Get tools from all servers
+        all_tools = await self.get_tools()
+        
+        # Find unique servers that have this tool
+        for tool in all_tools:
+            if tool["name"] == tool_name and tool["server"] not in servers_with_tool:
+                servers_with_tool.append(tool["server"])
+        
+        return servers_with_tool
+
+    def get_server_priorities(self) -> Dict[str, int]:
+        """Get server priorities from configuration.
+
+        Returns:
+            Dictionary mapping server names to priority values
+        """
+        priorities = {}
+        for server in self.config.servers:
+            if "priority" in server:
+                priorities[server["name"]] = server["priority"]
+        return priorities
+
+    async def broadcast_operation(
+        self, operation: str, *args, **kwargs
+    ) -> List[Tuple[str, Any]]:
+        """Broadcast an operation to all connected servers.
+
+        Args:
+            operation: Name of the operation to perform
+            *args: Positional arguments for the operation
+            **kwargs: Keyword arguments for the operation
+
+        Returns:
+            List of (server_name, result) tuples
+        """
+        tasks = []
+        server_names = []
+        
+        for name, session in self._sessions.items():
+            if hasattr(session, operation):
+                method = getattr(session, operation)
+                tasks.append(self._safe_call(method, *args, **kwargs))
+                server_names.append(name)
+        
+        # Execute all tasks in parallel
+        results = await asyncio.gather(*tasks)
+        
+        # Combine results with server names
+        return list(zip(server_names, results))
+
+    async def _safe_call(self, method, *args, **kwargs) -> Any:
+        """Safely call a method, returning None on error."""
+        try:
+            return await method(*args, **kwargs)
+        except Exception as e:
+            logger.warning(f"Operation failed: {e}")
+            return None
+
+    # Sync wrappers for multi-server operations
+
+    def find_best_server_for_tool_sync(self, tool_name: str) -> Optional[str]:
+        """Synchronous wrapper for find_best_server_for_tool."""
+        return asyncio.run(self.find_best_server_for_tool(tool_name))
+
+    def find_servers_with_tool_sync(self, tool_name: str) -> List[str]:
+        """Synchronous wrapper for find_servers_with_tool."""
+        return asyncio.run(self.find_servers_with_tool(tool_name))
+
+    def broadcast_operation_sync(
+        self, operation: str, *args, **kwargs
+    ) -> List[Tuple[str, Any]]:
+        """Synchronous wrapper for broadcast_operation."""
+        return asyncio.run(self.broadcast_operation(operation, *args, **kwargs))
