@@ -334,5 +334,31 @@ The MCP client will be integrated as a new component that works alongside the ex
    - User documentation
    - Example MCP servers
 
+## Implementation Log
+
+### Phase 1: Core MCP Infrastructure
+
+#### 2025-01-27 - Initial MCP Dependency Setup
+**Completed:**
+- ✅ Added `mcp[cli]` dependency to `pyproject.toml`
+- ✅ Updated Python version requirement from `>=3.9` to `>=3.10` (MCP requires Python 3.10+)
+- ✅ Updated Python version classifiers in `pyproject.toml` (removed Python 3.9)
+- ✅ Updated black target-version configuration (removed py39)
+- ✅ Added `pytest-asyncio>=0.21.0` to dev dependencies for future async tests
+- ✅ Created `tests/test_mcp_imports.py` with 4 tests verifying MCP imports:
+  - `test_mcp_package_import()` - Verifies base MCP package can be imported
+  - `test_mcp_client_session_import()` - Verifies ClientSession import
+  - `test_mcp_stdio_server_parameters_import()` - Verifies StdioServerParameters import
+  - `test_mcp_stdio_client_import()` - Verifies stdio_client import
+- ✅ All tests pass (75 total tests in project)
+- ✅ Code formatted with black and passes flake8
+- ✅ Updated `README.md` to reflect Python 3.10+ requirement
+- ✅ Added note in `README.md` about MCP integration in progress
+
+**Next Steps:**
+- Create `src/mcp_config.py` for configuration handling
+- Create `src/mcp_manager.py` for MCP client management
+- Add basic `/mcp` command structure to chatbot
+
 
 
