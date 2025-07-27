@@ -12,9 +12,11 @@ An interactive command-line chatbot powered by Google's Gemini LLM via Vertex AI
 - 🔧 **Multiple Models**: Support for different Gemini models (flash, pro)
 - 📋 **Command System**: Built-in commands for managing your chat session
 
+> **Note**: Model Context Protocol (MCP) integration is currently in progress, which will enable the chatbot to connect to external tools and data sources.
+
 ## Prerequisites
 
-- Python 3.9 or higher
+- Python 3.10 or higher
 - [uv](https://docs.astral.sh/uv/) package manager installed
 - Access to Google Cloud Vertex AI with Gemini models
 - Google Cloud CLI (`gcloud`) installed and authenticated

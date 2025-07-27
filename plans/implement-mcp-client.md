@@ -100,19 +100,239 @@ This plan outlines detailed steps to modify the chatbot to enable it to act as a
 
 ## New MCP Client features
 
+**Core MCP Capabilities:**
+- **Server Discovery & Connection**: Connect to MCP servers via stdio, SSE, or HTTP transports
+- **Dynamic Tool Access**: Query and invoke tools exposed by MCP servers
+- **Resource Access**: Retrieve data resources from connected servers
+- **Prompt Templates**: Access and use pre-defined prompts from servers
+- **Multi-Server Support**: Connect to multiple MCP servers simultaneously
+
+**Chatbot-Specific Features:**
+- **New Commands**:
+  - `/mcp connect <server>` - Connect to an MCP server
+  - `/mcp list` - List connected servers and their capabilities
+  - `/mcp tools` - Show available tools from all connected servers
+  - `/mcp resources` - Show available resources
+  - `/mcp prompts` - Show available prompt templates
+  - `/mcp disconnect <server>` - Disconnect from a server
+- **Tool Integration**: Seamlessly call MCP tools within chat conversations
+- **Resource Embedding**: Include MCP resources in prompts to Gemini
+- **Prompt Enhancement**: Use MCP prompt templates to enhance interactions
+- **Configuration Management**: Load server configurations from `mcp_config.json`
+
 ### New MCP Client architecture
+
+**Integration Approach:**
+The MCP client will be integrated as a new component that works alongside the existing Gemini client, allowing the chatbot to augment its capabilities with external tools and data sources.
+
+**New Components:**
+- `src/mcp_manager.py` - Central MCP client management
+  - Manages multiple MCP client sessions
+  - Handles server discovery and connection lifecycle
+  - Coordinates tool/resource/prompt access across servers
+  - Integrates with existing chat flow
+
+- `src/mcp_config.py` - MCP configuration handling
+  - Loads server configurations from `mcp_config.json`
+  - Validates transport types and parameters
+  - Manages authentication credentials
+  - Example config structure:
+    ```json
+    {
+      "servers": [
+        {
+          "name": "local-tools",
+          "transport": "stdio",
+          "command": ["python", "my_mcp_server.py"]
+        },
+        {
+          "name": "api-server",
+          "transport": "http",
+          "url": "http://localhost:8000/mcp"
+        }
+      ]
+    }
+    ```
+
+**Modified Components:**
+- `src/chatbot.py` - Extended to handle MCP commands
+  - New command processing for `/mcp` commands
+  - Integration points for tool results in conversation flow
+  - Display formatting for MCP responses
+
+- `src/gemini_client.py` - Enhanced message handling
+  - Ability to include MCP tool results in prompts
+  - Context enrichment with MCP resources
+
+**Architecture Flow:**
+1. User issues MCP command or mentions tool/resource
+2. Chatbot delegates to MCP Manager
+3. MCP Manager queries appropriate server(s)
+4. Results are formatted and either:
+   - Displayed directly to user (for listings)
+   - Passed to Gemini as context (for tool results)
+   - Used to enhance the prompt (for resources/prompts)
+
+**State Management:**
+- Active MCP sessions stored in MCP Manager
+- Tool/resource/prompt listings cached per session
+- Server connection status tracked
+- Integration with existing chat history
 
 ### New MCP Client tests
 
+**Unit Tests:**
+- `test_mcp_manager.py`
+  - Server connection/disconnection
+  - Tool/resource/prompt discovery
+  - Multi-server coordination
+  - Error handling for failed connections
+
+- `test_mcp_config.py`
+  - Configuration loading and validation
+  - Transport type handling
+  - Credential management
+
+**Integration Tests:**
+- `test_mcp_integration.py`
+  - End-to-end MCP command flows
+  - Tool execution with mock servers
+  - Resource retrieval scenarios
+  - Prompt template usage
+
+**Test Infrastructure:**
+- Mock MCP server for testing
+- Fixtures for various server configurations
+- Test data for tools, resources, and prompts
+
 ### New documentation
+
+**User Documentation Updates:**
+- **MCP Commands Guide**: Detailed guide for all `/mcp` commands
+- **Server Configuration**: How to set up `mcp_config.json`
+- **Example Workflows**: Common MCP usage patterns
+- **Troubleshooting**: MCP-specific issues and solutions
+
+**Developer Documentation:**
+- **MCP Integration Architecture**: Technical details of the integration
+- **Extending MCP Support**: How to add new transport types
+- **Security Considerations**: Best practices for MCP server connections
+
+**Configuration Documentation:**
+- **mcp_config.json Schema**: Complete configuration reference
+- **Transport Options**: Stdio, SSE, HTTP configuration details
+- **Authentication Setup**: OAuth and token management
 
 ## Needed changes
 
 ### New and updated tests
 
+**New Test Files:**
+1. `tests/test_mcp_manager.py` - Test MCP client management functionality
+2. `tests/test_mcp_config.py` - Test MCP configuration loading
+3. `tests/test_mcp_integration.py` - Integration tests for MCP features
+4. `tests/conftest.py` - Add MCP-related fixtures and mocks
+
+**Updated Test Files:**
+1. `tests/test_chatbot.py` - Add tests for new MCP commands
+2. `tests/test_main.py` - Add tests for MCP-related CLI arguments
+3. `tests/test_integration.py` - Add MCP + Gemini integration scenarios
+
 ### New and updated code
 
+**New Files to Create:**
+1. `src/mcp_manager.py` - Core MCP client management
+   - `MCPManager` class with methods:
+     - `connect_server(server_config)`
+     - `disconnect_server(server_name)`
+     - `list_servers()`
+     - `get_tools(server_name=None)`
+     - `get_resources(server_name=None)`
+     - `get_prompts(server_name=None)`
+     - `call_tool(server_name, tool_name, arguments)`
+     - `get_resource(server_name, resource_uri)`
+
+2. `src/mcp_config.py` - MCP configuration handling
+   - `MCPConfig` class for loading/validating config
+   - Support for stdio, SSE, and HTTP transports
+   - Server configuration validation
+
+3. `mcp_config.json` - Default configuration file
+   - Example server configurations
+   - Documentation comments
+
+**Files to Update:**
+1. `src/chatbot.py`
+   - Add MCP command processing in `process_command()`
+   - Add MCP manager initialization
+   - Add display methods for MCP results
+   - Integrate MCP tool calls into chat flow
+
+2. `src/gemini_client.py`
+   - Add method to include MCP context in messages
+   - Support for tool result formatting
+
+3. `src/config.py`
+   - Add MCP-related configuration options
+   - Path to mcp_config.json
+
+4. `main.py`
+   - Add MCP-related command line arguments
+   - Initialize MCP manager if enabled
+
+5. `pyproject.toml`
+   - Add `mcp` dependency
+   - Update version number
+
+6. `.gitignore`
+   - Add `mcp_config.json` (for user-specific configs)
+
 ### New and updated documentation
+
+**Files to Update:**
+1. `README.md`
+   - Add MCP features section
+   - Add MCP configuration guide
+   - Update command reference with MCP commands
+   - Add MCP server setup examples
+   - Update prerequisites with MCP requirements
+
+**New Documentation Files:**
+2. `docs/mcp-guide.md` - Comprehensive MCP usage guide
+   - Setting up MCP servers
+   - Configuring the chatbot for MCP
+   - Example workflows
+   - Troubleshooting
+
+3. `docs/mcp-config-schema.md` - Configuration reference
+   - Complete schema documentation
+   - Transport-specific options
+   - Security considerations
+
+**Implementation Order:**
+- IMPORTANT: The implementation will be dependent on the official MCP Python SDK, with documentation available at <https://raw.githubusercontent.com/modelcontextprotocol/python-sdk/refs/heads/main/README.md> Make this your primary reference for MCP client implementation, and import the SDK into the chatbot project.
+- IMPORTANT: This project uses uv as the package manager, not pip. Make sure to use uv for all package management, script running, and testing.
+
+1. **Phase 1**: Core MCP infrastructure *(IN PROGRESS)*
+   - Create `mcp_manager.py` and `mcp_config.py`
+   - Add basic MCP commands to chatbot
+   - Implement stdio transport first
+   - **Status**: MCP dependency added, Python version updated to 3.10+
+
+2. **Phase 2**: Integration with chat flow
+   - Tool execution within conversations
+   - Resource embedding in prompts
+   - Prompt template usage
+
+3. **Phase 3**: Advanced features
+   - HTTP/SSE transport support
+   - Multi-server coordination
+   - Authentication handling
+
+4. **Phase 4**: Polish and documentation
+   - Comprehensive testing
+   - User documentation
+   - Example MCP servers
 
 
 
