@@ -44,9 +44,7 @@ class TestMCPResources:
         # Should print header and resources
         assert chatbot.console.print.call_count >= 3
         # Verify resource details are shown
-        call_args = [
-            str(call) for call in chatbot.console.print.call_args_list
-        ]
+        call_args = [str(call) for call in chatbot.console.print.call_args_list]
         assert any("API Documentation" in str(arg) for arg in call_args)
         assert any("file:///docs/api.md" in str(arg) for arg in call_args)
 
@@ -61,9 +59,7 @@ class TestMCPResources:
         result = chatbot.process_command("/mcp resources")
 
         assert result is True
-        chatbot.console.print.assert_called_with(
-            "[dim]No MCP servers connected[/dim]"
-        )
+        chatbot.console.print.assert_called_with("[dim]No MCP servers connected[/dim]")
 
     @patch("src.chatbot.os.makedirs")
     def test_mcp_resources_no_resources(self, mock_makedirs):
@@ -128,10 +124,7 @@ class TestMCPResources:
             "Compare file:///a.txt with file:///b.txt"
         ) == ["file:///a.txt", "file:///b.txt"]
 
-        assert (
-            chatbot._detect_resource_reference("This is a normal message")
-            == []
-        )
+        assert chatbot._detect_resource_reference("This is a normal message") == []
 
     @patch("src.chatbot.os.makedirs")
     def test_read_mcp_resource(self, mock_makedirs):
@@ -150,9 +143,7 @@ class TestMCPResources:
             }
         )
 
-        content = chatbot._read_mcp_resource(
-            "docs-server", "file:///docs/api.md"
-        )
+        content = chatbot._read_mcp_resource("docs-server", "file:///docs/api.md")
 
         assert content == "# API Documentation\n\nGET /users - List all users"
         chatbot.mcp_manager.read_resource_sync.assert_called_once_with(
@@ -242,9 +233,7 @@ class TestMCPResources:
         )
 
         # Process message with resource reference
-        chatbot._process_chat_message(
-            "What does file:///docs/api.md say about users?"
-        )
+        chatbot._process_chat_message("What does file:///docs/api.md say about users?")
 
         # Verify resource was read
         chatbot.mcp_manager.read_resource_sync.assert_called_once_with(
@@ -254,7 +243,4 @@ class TestMCPResources:
         # Verify resource content was included in prompt
         first_call = chatbot.client.send_message.call_args_list[0]
         assert "# API Documentation" in first_call[0][0]
-        assert (
-            "What does file:///docs/api.md say about users?"
-            in first_call[0][0]
-        )
+        assert "What does file:///docs/api.md say about users?" in first_call[0][0]

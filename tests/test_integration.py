@@ -13,9 +13,7 @@ class TestIntegration:
 
     @patch("src.gemini_client.genai.Client")
     @patch("src.chatbot.os.makedirs")
-    def test_chatbot_gemini_client_integration(
-        self, mock_makedirs, mock_genai_client
-    ):
+    def test_chatbot_gemini_client_integration(self, mock_makedirs, mock_genai_client):
         """Test integration between GeminiChatbot and GeminiClient."""
         # Mock the genai client
         mock_client_instance = Mock()
@@ -85,9 +83,7 @@ class TestIntegration:
         mock_history_item2 = Mock()
         mock_history_item2.role = "assistant"
         mock_history_item2.parts = [Mock()]
-        mock_history_item2.parts[0].text = (
-            "AI stands for Artificial Intelligence..."
-        )
+        mock_history_item2.parts[0].text = "AI stands for Artificial Intelligence..."
 
         mock_chat_session.get_history.return_value = [
             mock_history_item1,
@@ -124,9 +120,7 @@ class TestIntegration:
 
     @patch("src.gemini_client.genai.Client")
     @patch("src.chatbot.os.makedirs")
-    def test_command_processing_integration(
-        self, mock_makedirs, mock_genai_client
-    ):
+    def test_command_processing_integration(self, mock_makedirs, mock_genai_client):
         """Test command processing with real client interactions."""
         mock_client_instance = Mock()
         mock_chat_session = Mock()
@@ -157,9 +151,7 @@ class TestIntegration:
 
     @patch("src.gemini_client.genai.Client")
     @patch("src.chatbot.os.makedirs")
-    def test_error_handling_integration(
-        self, mock_makedirs, mock_genai_client
-    ):
+    def test_error_handling_integration(self, mock_makedirs, mock_genai_client):
         """Test error handling across the integrated system."""
         # Test client initialization failure
         mock_genai_client.side_effect = Exception("Authentication failed")
@@ -191,9 +183,7 @@ class TestIntegration:
 
     @patch("src.gemini_client.genai.Client")
     @patch("src.chatbot.os.makedirs")
-    def test_model_switching_integration(
-        self, mock_makedirs, mock_genai_client
-    ):
+    def test_model_switching_integration(self, mock_makedirs, mock_genai_client):
         """Test that different models can be used correctly."""
         mock_client_instance = Mock()
         mock_genai_client.return_value = mock_client_instance
@@ -217,9 +207,7 @@ class TestIntegration:
 
     @patch("src.gemini_client.genai.Client")
     @patch("src.chatbot.os.makedirs")
-    def test_session_lifecycle_integration(
-        self, mock_makedirs, mock_genai_client
-    ):
+    def test_session_lifecycle_integration(self, mock_makedirs, mock_genai_client):
         """Test the complete session lifecycle."""
         mock_client_instance = Mock()
         mock_chat_session = Mock()

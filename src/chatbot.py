@@ -105,9 +105,7 @@ class GeminiChatbot:
             self.console.print()
         else:
             # Use scrollable display for long content
-            self._display_scrollable_content(
-                rendered_content, "Gemini Response"
-            )
+            self._display_scrollable_content(rendered_content, "Gemini Response")
 
     def _display_scrollable_content(self, rendered_content: str, title: str):
         """Display content in a scrollable interface."""
@@ -135,9 +133,7 @@ class GeminiChatbot:
                 if prev_newline == -1:
                     buffer.cursor_position = 0
                 else:
-                    prev_prev_newline = current_text.rfind(
-                        "\n", 0, prev_newline - 1
-                    )
+                    prev_prev_newline = current_text.rfind("\n", 0, prev_newline - 1)
                     buffer.cursor_position = (
                         prev_prev_newline + 1 if prev_prev_newline != -1 else 0
                     )
@@ -201,9 +197,7 @@ class GeminiChatbot:
         )
 
         # Add help text to the bottom window
-        help_text = (
-            "↑/↓ or j/k: scroll | Home/g: top | End/G: bottom | q/Esc: exit"
-        )
+        help_text = "↑/↓ or j/k: scroll | Home/g: top | End/G: bottom | q/Esc: exit"
         help_buffer = Buffer(document=Document(help_text), read_only=True)
         root_container.children[1].content.buffer = help_buffer
 
@@ -218,9 +212,7 @@ class GeminiChatbot:
         )
 
         content_type = title.lower()
-        self.console.print(
-            f"\n[dim]{title} is long. Opening scrollable view...[/dim]"
-        )
+        self.console.print(f"\n[dim]{title} is long. Opening scrollable view...[/dim]")
         self.console.print(
             "[dim]Use arrow keys or j/k to scroll, q/Esc to exit[/dim]\n"
         )
@@ -285,9 +277,7 @@ class GeminiChatbot:
             self.console.print(history_content)
         else:
             # Use scrollable display for long history
-            self._display_scrollable_content(
-                rendered_content, "Conversation History"
-            )
+            self._display_scrollable_content(rendered_content, "Conversation History")
 
     def _build_history_content(self, history):
         """Build formatted history content as Rich markup."""
@@ -355,18 +345,14 @@ class GeminiChatbot:
         elif command == "/history":
             self.display_history()
         elif command == "/model":
-            self.console.print(
-                f"[bold]Current model:[/bold] {self.client.model_name}"
-            )
+            self.console.print(f"[bold]Current model:[/bold] {self.client.model_name}")
         elif command == "/prune":
             self.prune_command_history()
         elif command.startswith("/mcp"):
             self.process_mcp_command(original_command)
         else:
             self.console.print(f"[red]Unknown command: {command}[/red]")
-            self.console.print(
-                "[dim]Type '/help' for available commands[/dim]"
-            )
+            self.console.print("[dim]Type '/help' for available commands[/dim]")
 
         return True
 
@@ -383,15 +369,9 @@ class GeminiChatbot:
             self.console.print("  /mcp connect <server> - Connect to a server")
             self.console.print("  /mcp list - List servers and status")
             self.console.print("  /mcp resources - List available resources")
-            self.console.print(
-                "  /mcp prompts - List available prompt templates"
-            )
-            self.console.print(
-                "  /mcp prompt <name> [args] - Use a prompt template"
-            )
-            self.console.print(
-                "  /mcp disconnect <server> - Disconnect from a server"
-            )
+            self.console.print("  /mcp prompts - List available prompt templates")
+            self.console.print("  /mcp prompt <name> [args] - Use a prompt template")
+            self.console.print("  /mcp disconnect <server> - Disconnect from a server")
             return
 
         subcommand = parts[1].lower()
@@ -427,13 +407,9 @@ class GeminiChatbot:
 
         self.console.print("\n[bold]MCP Servers:[/bold]")
         for server in servers:
-            status = (
-                "✅ Connected" if server["connected"] else "⚪ Disconnected"
-            )
+            status = "✅ Connected" if server["connected"] else "⚪ Disconnected"
             transport = server["transport"]
-            self.console.print(
-                f"  • {server['name']} ({transport}) - {status}"
-            )
+            self.console.print(f"  • {server['name']} ({transport}) - {status}")
         self.console.print()
 
     def mcp_connect(self, server_name: str):
@@ -526,9 +502,7 @@ class GeminiChatbot:
                         arg_desc = arg.get("description", "")
                         required = arg.get("required", False)
                         req_text = " [required]" if required else " [optional]"
-                        self.console.print(
-                            f"    - {arg_name}{req_text}: {arg_desc}"
-                        )
+                        self.console.print(f"    - {arg_name}{req_text}: {arg_desc}")
             self.console.print()
 
         except Exception as e:
@@ -550,9 +524,7 @@ class GeminiChatbot:
 
         try:
             # Get the prompt with arguments
-            with self.console.status(
-                f"[dim]Loading prompt '{prompt_name}'...[/dim]"
-            ):
+            with self.console.status(f"[dim]Loading prompt '{prompt_name}'...[/dim]"):
                 prompt_result = self.mcp_manager.get_prompt_sync(
                     server_name, prompt_name, arguments
                 )
@@ -581,20 +553,14 @@ class GeminiChatbot:
         )
 
         try:
-            confirmation = (
-                prompt("Are you sure? (y/N): ", default="n").lower().strip()
-            )
+            confirmation = prompt("Are you sure? (y/N): ", default="n").lower().strip()
 
             if confirmation in ["y", "yes"]:
                 try:
                     os.remove(self.history_file)
-                    self.console.print(
-                        "[green]✅ Command history cleared[/green]"
-                    )
+                    self.console.print("[green]✅ Command history cleared[/green]")
                 except OSError as e:
-                    self.console.print(
-                        f"[red]❌ Error clearing history: {e}[/red]"
-                    )
+                    self.console.print(f"[red]❌ Error clearing history: {e}[/red]")
             else:
                 self.console.print("[dim]Command history preserved[/dim]")
         except KeyboardInterrupt:
@@ -618,21 +584,18 @@ class GeminiChatbot:
 
             context = "\nAvailable MCP Tools:\n"
             for tool in tools:
-                context += f"\n- Tool: {tool['name']} (from {tool.get('server', 'unknown')})\n"
-                context += f"  Description: {tool.get('description', 'No description')}\n"
+                context += (
+                    f"\n- Tool: {tool['name']} (from {tool.get('server', 'unknown')})\n"
+                )
+                context += (
+                    f"  Description: {tool.get('description', 'No description')}\n"
+                )
 
                 # Add parameter information if available
-                if (
-                    "inputSchema" in tool
-                    and "properties" in tool["inputSchema"]
-                ):
+                if "inputSchema" in tool and "properties" in tool["inputSchema"]:
                     context += "  Parameters:\n"
-                    for param, schema in tool["inputSchema"][
-                        "properties"
-                    ].items():
-                        required = param in tool["inputSchema"].get(
-                            "required", []
-                        )
+                    for param, schema in tool["inputSchema"]["properties"].items():
+                        required = param in tool["inputSchema"].get("required", [])
                         req_text = " (required)" if required else " (optional)"
                         context += f"    - {param}: {schema.get('type', 'any')} - {schema.get('description', 'No description')}{req_text}\n"
 
@@ -675,14 +638,10 @@ class GeminiChatbot:
             arguments["location"] = location_match.group(1).strip()
 
         # Look for numeric values pattern
-        values_match = re.search(
-            r"with values? (\d+(?:\s+and\s+\d+)*)", response
-        )
+        values_match = re.search(r"with values? (\d+(?:\s+and\s+\d+)*)", response)
         if values_match:
             values_text = values_match.group(1)
-            values = [
-                int(v.strip()) for v in re.split(r"\s+and\s+", values_text)
-            ]
+            values = [int(v.strip()) for v in re.split(r"\s+and\s+", values_text)]
             arguments["values"] = values
 
         return tool_name, arguments if arguments else {}
@@ -706,9 +665,7 @@ class GeminiChatbot:
     ) -> str:
         """Execute an MCP tool and return formatted results."""
         try:
-            result = self.mcp_manager.call_tool_sync(
-                server_name, tool_name, arguments
-            )
+            result = self.mcp_manager.call_tool_sync(server_name, tool_name, arguments)
 
             # Extract text content from the result
             if "content" in result and isinstance(result["content"], list):
@@ -747,7 +704,9 @@ class GeminiChatbot:
             for resource in resources:
                 context += f"\n- Resource: {resource.get('name', 'Unnamed')} (from {resource.get('server', 'unknown')})\n"
                 context += f"  URI: {resource.get('uri', '')}\n"
-                context += f"  Description: {resource.get('description', 'No description')}\n"
+                context += (
+                    f"  Description: {resource.get('description', 'No description')}\n"
+                )
                 if "mimeType" in resource:
                     context += f"  Type: {resource['mimeType']}\n"
 
@@ -765,9 +724,7 @@ class GeminiChatbot:
 
         # Pattern to match common resource URI schemes
         # Matches: file:///path, github:repo/file, db://table, etc.
-        pattern = (
-            r'(?:file://|github:|db://|https?://|resource://)[^\s,;"\'\?!]+'
-        )
+        pattern = r'(?:file://|github:|db://|https?://|resource://)[^\s,;"\'\?!]+'
 
         matches = re.findall(pattern, text)
         return matches
@@ -789,9 +746,7 @@ class GeminiChatbot:
     def _read_mcp_resource(self, server_name: str, resource_uri: str) -> str:
         """Read an MCP resource and return its content."""
         try:
-            result = self.mcp_manager.read_resource_sync(
-                server_name, resource_uri
-            )
+            result = self.mcp_manager.read_resource_sync(server_name, resource_uri)
 
             # Extract content from the result
             if "contents" in result and isinstance(result["contents"], list):
@@ -899,9 +854,7 @@ class GeminiChatbot:
                     "help",
                 ]
                 for keyword in keywords:
-                    if keyword in query_lower and (
-                        keyword in name or keyword in desc
-                    ):
+                    if keyword in query_lower and (keyword in name or keyword in desc):
                         relevant_prompts.append(prompt)
                         break
 
@@ -921,12 +874,8 @@ class GeminiChatbot:
             for resource_uri in resource_refs:
                 server_name = self._find_resource_server(resource_uri)
                 if server_name:
-                    with self.console.status(
-                        f"[dim]Reading {resource_uri}...[/dim]"
-                    ):
-                        content = self._read_mcp_resource(
-                            server_name, resource_uri
-                        )
+                    with self.console.status(f"[dim]Reading {resource_uri}...[/dim]"):
+                        content = self._read_mcp_resource(server_name, resource_uri)
                         resource_contents[resource_uri] = content
 
         # Get MCP contexts
@@ -936,9 +885,7 @@ class GeminiChatbot:
         # Build the enhanced user message with resource contents
         enhanced_message = user_input
         if resource_contents:
-            enhanced_message = (
-                f"{user_input}\n\n--- Referenced Resources ---\n"
-            )
+            enhanced_message = f"{user_input}\n\n--- Referenced Resources ---\n"
             for uri, content in resource_contents.items():
                 enhanced_message += f"\nContent of {uri}:\n{content}\n"
 
@@ -957,9 +904,7 @@ class GeminiChatbot:
 
         # Get response from Gemini
         with self.console.status("[dim]Thinking...[/dim]"):
-            response = self.client.send_message(
-                enhanced_message, system_instruction
-            )
+            response = self.client.send_message(enhanced_message, system_instruction)
 
         # Display initial response
         self.display_response(response)
@@ -973,9 +918,7 @@ class GeminiChatbot:
 
             if server_name:
                 # Execute the tool
-                with self.console.status(
-                    f"[dim]Executing {tool_name} tool...[/dim]"
-                ):
+                with self.console.status(f"[dim]Executing {tool_name} tool...[/dim]"):
                     tool_result = self._execute_mcp_tool(
                         server_name, tool_name, arguments
                     )
@@ -983,9 +926,7 @@ class GeminiChatbot:
                 # Send tool result back to Gemini for final response
                 follow_up = f"The {tool_name} tool returned: {tool_result}\n\nPlease provide a natural response to the user based on this result."
 
-                with self.console.status(
-                    "[dim]Processing tool result...[/dim]"
-                ):
+                with self.console.status("[dim]Processing tool result...[/dim]"):
                     final_response = self.client.send_message(follow_up)
 
                 # Display final response
@@ -1027,9 +968,7 @@ class GeminiChatbot:
                 self._process_chat_message(user_input)
 
             except KeyboardInterrupt:
-                self.console.print(
-                    "\n[yellow]Use '/quit' to exit properly[/yellow]"
-                )
+                self.console.print("\n[yellow]Use '/quit' to exit properly[/yellow]")
             except Exception as e:
                 self.console.print(f"\n[bold red]Error: {e}[/bold red]")
 

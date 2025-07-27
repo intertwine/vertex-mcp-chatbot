@@ -32,9 +32,7 @@ class GeminiClient:
             print("✅ Google Gen AI client initialized successfully")
             print(f"✅ Model '{self.model_name}' ready")
         except Exception as e:
-            raise RuntimeError(
-                f"Failed to initialize Google Gen AI client: {e}"
-            )
+            raise RuntimeError(f"Failed to initialize Google Gen AI client: {e}")
 
     def start_chat(self, system_instruction: Optional[str] = None):
         """Start a new chat session.

@@ -8,12 +8,25 @@
     {
       "name": "example-http-server",
       "transport": "http",
-      "url": "http://localhost:8000/mcp"
+      "url": "http://localhost:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer your-api-token"
+      }
     },
     {
       "name": "example-sse-server",
       "transport": "sse",
       "url": "http://localhost:8001/events"
+    },
+    {
+      "name": "example-auth-http-server",
+      "transport": "http",
+      "url": "http://localhost:8002/mcp",
+      "auth": {
+        "type": "basic",
+        "username": "your-username",
+        "password": "your-password"
+      }
     }
   ]
 }

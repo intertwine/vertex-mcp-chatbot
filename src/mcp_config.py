@@ -58,9 +58,7 @@ class MCPConfig:
         """
         # Check required fields
         if "name" not in server:
-            raise MCPConfigError(
-                "Server configuration missing required field: name"
-            )
+            raise MCPConfigError("Server configuration missing required field: name")
 
         if "transport" not in server:
             raise MCPConfigError(

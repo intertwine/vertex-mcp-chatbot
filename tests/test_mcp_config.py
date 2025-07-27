@@ -162,9 +162,7 @@ class TestMCPConfig:
     def test_missing_server_name(self, tmp_path):
         """Test handling of server without name."""
         config_data = {
-            "servers": [
-                {"transport": "stdio", "command": ["python", "server.py"]}
-            ]
+            "servers": [{"transport": "stdio", "command": ["python", "server.py"]}]
         }
         config_file = tmp_path / "config.json"
         config_file.write_text(json.dumps(config_data))
@@ -217,9 +215,7 @@ class TestMCPConfig:
         """Test reloading configuration from file."""
         config_file = tmp_path / "mcp_config.json"
         initial_config = {
-            "servers": [
-                {"name": "test1", "transport": "stdio", "command": ["cmd1"]}
-            ]
+            "servers": [{"name": "test1", "transport": "stdio", "command": ["cmd1"]}]
         }
         config_file.write_text(json.dumps(initial_config))
 

@@ -62,18 +62,14 @@ class TestScrollableResponse:
         rendered_content = "Line 1\nLine 2\nLine 3\n"
         original_response = "Original response"
 
-        self.chatbot._display_scrollable_content(
-            rendered_content, "Test Title"
-        )
+        self.chatbot._display_scrollable_content(rendered_content, "Test Title")
 
         # Should create and run an application
         mock_app_class.assert_called_once()
         mock_app.run.assert_called_once()
 
     @patch("src.chatbot.Application")
-    def test_scrollable_response_handles_keyboard_interrupt(
-        self, mock_app_class
-    ):
+    def test_scrollable_response_handles_keyboard_interrupt(self, mock_app_class):
         """Test that scrollable response handles KeyboardInterrupt gracefully."""
         mock_app = Mock()
         mock_app.run.side_effect = KeyboardInterrupt()
@@ -83,18 +79,14 @@ class TestScrollableResponse:
         original_response = "Original response"
 
         # Should not raise exception
-        self.chatbot._display_scrollable_content(
-            rendered_content, "Test Title"
-        )
+        self.chatbot._display_scrollable_content(rendered_content, "Test Title")
 
         # Should still print return message
         assert self.chatbot.console.print.call_count >= 1
 
     @patch("src.chatbot.KeyBindings")
     @patch("src.chatbot.Application")
-    def test_scrollable_response_key_bindings(
-        self, mock_app_class, mock_kb_class
-    ):
+    def test_scrollable_response_key_bindings(self, mock_app_class, mock_kb_class):
         """Test that scrollable response sets up proper key bindings."""
         mock_kb = Mock()
         mock_kb_class.return_value = mock_kb
@@ -104,9 +96,7 @@ class TestScrollableResponse:
         rendered_content = "Line 1\nLine 2\nLine 3\n"
         original_response = "Original response"
 
-        self.chatbot._display_scrollable_content(
-            rendered_content, "Test Title"
-        )
+        self.chatbot._display_scrollable_content(rendered_content, "Test Title")
 
         # Should create key bindings
         mock_kb_class.assert_called_once()
@@ -119,9 +109,7 @@ class TestScrollableResponse:
         # Test with content that should fit
         with patch("src.chatbot.Console") as mock_console_class:
             mock_temp_console = Mock()
-            short_content = (
-                "Line 1\nLine 2\nLine 3\n"  # 4 lines including empty
-            )
+            short_content = "Line 1\nLine 2\nLine 3\n"  # 4 lines including empty
             mock_temp_console.file = StringIO(short_content)
             mock_console_class.return_value = mock_temp_console
 
@@ -170,17 +158,13 @@ class TestScrollableResponse:
         rendered_content = "Test content\nLine 2\nLine 3\n"
         original_response = "Original"
 
-        self.chatbot._display_scrollable_content(
-            rendered_content, "Test Title"
-        )
+        self.chatbot._display_scrollable_content(rendered_content, "Test Title")
 
         # Should create buffer with document
         mock_buffer_class.assert_called()
         # Check that Document was called with the rendered content (may be called multiple times)
         document_calls = [
-            call.args[0]
-            for call in mock_document_class.call_args_list
-            if call.args
+            call.args[0] for call in mock_document_class.call_args_list if call.args
         ]
         assert (
             rendered_content in document_calls
@@ -195,14 +179,11 @@ class TestScrollableResponse:
             rendered_content = "Test content"
             original_response = "Original"
 
-            self.chatbot._display_scrollable_content(
-                rendered_content, "Test Title"
-            )
+            self.chatbot._display_scrollable_content(rendered_content, "Test Title")
 
             # Should print help messages
             print_calls = [
-                call.args[0]
-                for call in self.chatbot.console.print.call_args_list
+                call.args[0] for call in self.chatbot.console.print.call_args_list
             ]
             help_messages = [
                 call

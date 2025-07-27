@@ -15,7 +15,9 @@ class Config:
     LOCATION = "us-central1"
 
     # Model Settings
-    DEFAULT_MODEL = "gemini-2.5-flash"  # Latest Gemini 2.5 Flash model with enhanced capabilities
+    DEFAULT_MODEL = (
+        "gemini-2.5-flash"  # Latest Gemini 2.5 Flash model with enhanced capabilities
+    )
 
     # Chat Settings
     MAX_HISTORY_LENGTH = 10  # Number of conversation turns to keep in memory

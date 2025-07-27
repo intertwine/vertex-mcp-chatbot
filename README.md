@@ -13,7 +13,12 @@ An interactive command-line chatbot powered by Google's Gemini LLM via Vertex AI
 - 📋 **Command System**: Built-in commands for managing your chat session
 - 🔌 **MCP Tool Integration**: When MCP servers are connected, their tools are automatically available to Gemini during conversations
 
-> **Note**: Model Context Protocol (MCP) integration is currently in progress. Basic tool execution is now working, with more features coming soon.
+> **Note**: Model Context Protocol (MCP) integration is in active development. Currently supports:
+> - ✅ Tool execution during conversations
+> - ✅ Resource reading and embedding
+> - ✅ Prompt template usage
+> - ✅ HTTP/SSE transport (in addition to stdio)
+> - 🚧 Multi-server coordination (coming soon)
 
 ## Prerequisites
 

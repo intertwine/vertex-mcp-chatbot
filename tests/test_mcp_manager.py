@@ -94,9 +94,7 @@ class TestMCPManager:
         assert len(manager._transports) == 0
 
     @pytest.mark.asyncio
-    async def test_connect_stdio_server(
-        self, mock_config, mock_client_session
-    ):
+    async def test_connect_stdio_server(self, mock_config, mock_client_session):
         """Test connecting to a stdio transport server."""
         manager = MCPManager(mock_config)
 
@@ -126,13 +124,12 @@ class TestMCPManager:
                 mock_client_session.initialize.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_connect_http_server(self, mock_config):
-        """Test connecting to HTTP transport server (not yet implemented)."""
+    @patch("src.mcp_manager.HTTP_TRANSPORT_AVAILABLE", False)
+    async def test_connect_http_server_not_available(self, mock_config):
+        """Test connecting to HTTP transport server when httpx not available."""
         manager = MCPManager(mock_config)
 
-        with pytest.raises(
-            MCPManagerError, match="HTTP transport not yet implemented"
-        ):
+        with pytest.raises(MCPManagerError, match="HTTP transport requires httpx"):
             await manager.connect_server("test-http")
 
     @pytest.mark.asyncio
@@ -140,15 +137,11 @@ class TestMCPManager:
         """Test connecting to a non-existent server."""
         manager = MCPManager(mock_config)
 
-        with pytest.raises(
-            MCPManagerError, match="Server 'nonexistent' not found"
-        ):
+        with pytest.raises(MCPManagerError, match="Server 'nonexistent' not found"):
             await manager.connect_server("nonexistent")
 
     @pytest.mark.asyncio
-    async def test_connect_already_connected(
-        self, mock_config, mock_client_session
-    ):
+    async def test_connect_already_connected(self, mock_config, mock_client_session):
         """Test connecting to an already connected server."""
         manager = MCPManager(mock_config)
         manager._sessions["test-stdio"] = mock_client_session
@@ -188,9 +181,7 @@ class TestMCPManager:
         assert servers[1]["connected"] is False
 
     @pytest.mark.asyncio
-    async def test_get_tools_single_server(
-        self, mock_config, mock_client_session
-    ):
+    async def test_get_tools_single_server(self, mock_config, mock_client_session):
         """Test getting tools from a specific server."""
         manager = MCPManager(mock_config)
         manager._sessions["test-stdio"] = mock_client_session
@@ -217,18 +208,14 @@ class TestMCPManager:
         session1 = AsyncMock()
         session1.list_tools = AsyncMock(
             return_value={
-                "tools": [
-                    {"name": "tool1", "description": "Tool from server 1"}
-                ]
+                "tools": [{"name": "tool1", "description": "Tool from server 1"}]
             }
         )
 
         session2 = AsyncMock()
         session2.list_tools = AsyncMock(
             return_value={
-                "tools": [
-                    {"name": "tool2", "description": "Tool from server 2"}
-                ]
+                "tools": [{"name": "tool2", "description": "Tool from server 2"}]
             }
         )
 
@@ -274,9 +261,7 @@ class TestMCPManager:
         manager._sessions["test-stdio"] = mock_client_session
 
         mock_client_session.list_prompts.return_value = {
-            "prompts": [
-                {"name": "test-prompt", "description": "A test prompt"}
-            ]
+            "prompts": [{"name": "test-prompt", "description": "A test prompt"}]
         }
 
         prompts = await manager.get_prompts("test-stdio")
@@ -294,9 +279,7 @@ class TestMCPManager:
             "content": [{"type": "text", "text": "Tool result"}]
         }
 
-        result = await manager.call_tool(
-            "test-stdio", "tool1", {"arg": "value"}
-        )
+        result = await manager.call_tool("test-stdio", "tool1", {"arg": "value"})
 
         assert result["content"][0]["text"] == "Tool result"
         mock_client_session.call_tool.assert_called_once_with(
@@ -316,9 +299,7 @@ class TestMCPManager:
         result = await manager.read_resource("test-stdio", "resource://test")
 
         assert result["contents"][0]["text"] == "Resource content"
-        mock_client_session.read_resource.assert_called_once_with(
-            "resource://test"
-        )
+        mock_client_session.read_resource.assert_called_once_with("resource://test")
 
     def test_get_sync_wrapper_methods(self, mock_config):
         """Test that sync wrapper methods exist for async operations."""

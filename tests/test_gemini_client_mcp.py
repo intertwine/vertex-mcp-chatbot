@@ -17,9 +17,7 @@ class TestGeminiClientMCP:
         mock_genai_client.return_value = mock_client_instance
 
         client = GeminiClient()
-        system_instruction = (
-            "You are a helpful assistant with access to tools."
-        )
+        system_instruction = "You are a helpful assistant with access to tools."
 
         session = client.start_chat(system_instruction)
 

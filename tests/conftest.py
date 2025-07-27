@@ -74,9 +74,7 @@ def sample_chat_history():
     assistant_message = Mock()
     assistant_message.role = "assistant"
     assistant_message.parts = [Mock()]
-    assistant_message.parts[0].text = (
-        "Artificial intelligence (AI) refers to..."
-    )
+    assistant_message.parts[0].text = "Artificial intelligence (AI) refers to..."
 
     return [user_message, assistant_message]
 
@@ -105,9 +103,7 @@ def mock_file_operations():
 def pytest_configure(config):
     """Configure custom pytest markers."""
     config.addinivalue_line("markers", "unit: mark test as a unit test")
-    config.addinivalue_line(
-        "markers", "integration: mark test as an integration test"
-    )
+    config.addinivalue_line("markers", "integration: mark test as an integration test")
     config.addinivalue_line("markers", "slow: mark test as slow running")
 
 

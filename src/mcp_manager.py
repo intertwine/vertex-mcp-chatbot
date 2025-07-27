@@ -7,6 +7,16 @@ from typing import Dict, List, Any, Optional, Tuple
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+# Import HTTP/SSE transports
+try:
+    from mcp.client.streamable_http import streamablehttp_client
+    from mcp.client.sse import sse_client
+    import httpx
+
+    HTTP_TRANSPORT_AVAILABLE = True
+except ImportError:
+    HTTP_TRANSPORT_AVAILABLE = False
+
 from .mcp_config import MCPConfig
 
 
@@ -27,9 +37,8 @@ class MCPManager:
         """
         self.config = config or MCPConfig()
         self._sessions: Dict[str, ClientSession] = {}
-        self._transports: Dict[str, Tuple[Any, Any]] = (
-            {}
-        )  # Store (read, write) streams
+        self._transports: Dict[str, Tuple[Any, Any]] = {}  # Store (read, write) streams
+        self._session_id_callbacks: Dict[str, Any] = {}  # For HTTP transport
         self._exit_stack: Optional[AsyncExitStack] = None
         self._initialized = False
 
@@ -69,18 +78,24 @@ class MCPManager:
         # Get server configuration
         server_config = self.config.get_server(server_name)
         if not server_config:
-            raise MCPManagerError(
-                f"Server '{server_name}' not found in configuration"
-            )
+            raise MCPManagerError(f"Server '{server_name}' not found in configuration")
 
         transport = server_config["transport"]
 
         if transport == "stdio":
             await self._connect_stdio_server(server_name, server_config)
         elif transport == "http":
-            raise MCPManagerError("HTTP transport not yet implemented")
+            if not HTTP_TRANSPORT_AVAILABLE:
+                raise MCPManagerError(
+                    "HTTP transport requires httpx. Install with: pip install httpx httpx-sse"
+                )
+            await self._connect_http_server(server_name, server_config)
         elif transport == "sse":
-            raise MCPManagerError("SSE transport not yet implemented")
+            if not HTTP_TRANSPORT_AVAILABLE:
+                raise MCPManagerError(
+                    "SSE transport requires httpx. Install with: pip install httpx httpx-sse"
+                )
+            await self._connect_sse_server(server_name, server_config)
         else:
             raise MCPManagerError(f"Unknown transport type: {transport}")
 
@@ -121,9 +136,105 @@ class MCPManager:
             self._transports[server_name] = (read, write)
 
         except Exception as e:
-            raise MCPManagerError(
-                f"Failed to connect to server '{server_name}': {e}"
+            raise MCPManagerError(f"Failed to connect to server '{server_name}': {e}")
+
+    async def _connect_http_server(
+        self, server_name: str, config: Dict[str, Any]
+    ) -> None:
+        """Connect to an HTTP transport server.
+
+        Args:
+            server_name: Name of the server
+            config: Server configuration
+        """
+        if not self._exit_stack:
+            raise MCPManagerError("Manager not initialized")
+
+        url = config["url"]
+        headers = config.get("headers")
+        auth = None
+
+        # Handle authentication
+        auth_config = config.get("auth")
+        if auth_config:
+            auth_type = auth_config.get("type")
+            if auth_type == "basic":
+                username = auth_config.get("username")
+                password = auth_config.get("password")
+                if username and password:
+                    auth = httpx.BasicAuth(username, password)
+            # Add other auth types as needed
+
+        try:
+            # Create the HTTP transport
+            http_transport = await self._exit_stack.enter_async_context(
+                streamablehttp_client(url, headers=headers, auth=auth)
             )
+            read, write, get_session_id = http_transport
+
+            # Create the client session
+            session = await self._exit_stack.enter_async_context(
+                ClientSession(read, write)
+            )
+
+            # Initialize the session
+            await session.initialize()
+
+            # Store the session, transport, and session ID callback
+            self._sessions[server_name] = session
+            self._transports[server_name] = (read, write)
+            self._session_id_callbacks[server_name] = get_session_id
+
+        except Exception as e:
+            raise MCPManagerError(f"Failed to connect to server '{server_name}': {e}")
+
+    async def _connect_sse_server(
+        self, server_name: str, config: Dict[str, Any]
+    ) -> None:
+        """Connect to an SSE transport server.
+
+        Args:
+            server_name: Name of the server
+            config: Server configuration
+        """
+        if not self._exit_stack:
+            raise MCPManagerError("Manager not initialized")
+
+        url = config["url"]
+        headers = config.get("headers")
+        auth = None
+
+        # Handle authentication (same as HTTP)
+        auth_config = config.get("auth")
+        if auth_config:
+            auth_type = auth_config.get("type")
+            if auth_type == "basic":
+                username = auth_config.get("username")
+                password = auth_config.get("password")
+                if username and password:
+                    auth = httpx.BasicAuth(username, password)
+
+        try:
+            # Create the SSE transport
+            sse_transport = await self._exit_stack.enter_async_context(
+                sse_client(url, headers=headers, auth=auth)
+            )
+            read, write = sse_transport
+
+            # Create the client session
+            session = await self._exit_stack.enter_async_context(
+                ClientSession(read, write)
+            )
+
+            # Initialize the session
+            await session.initialize()
+
+            # Store the session and transport
+            self._sessions[server_name] = session
+            self._transports[server_name] = (read, write)
+
+        except Exception as e:
+            raise MCPManagerError(f"Failed to connect to server '{server_name}': {e}")
 
     async def disconnect_server(self, server_name: str) -> None:
         """Disconnect from an MCP server.
@@ -135,6 +246,7 @@ class MCPManager:
         # Note: Actual cleanup happens via AsyncExitStack on cleanup()
         self._sessions.pop(server_name, None)
         self._transports.pop(server_name, None)
+        self._session_id_callbacks.pop(server_name, None)
 
     def list_servers(self) -> List[Dict[str, Any]]:
         """List all configured servers with their connection status.
@@ -165,9 +277,7 @@ class MCPManager:
         """
         if server_name:
             if server_name not in self._sessions:
-                raise MCPManagerError(
-                    f"Server '{server_name}' is not connected"
-                )
+                raise MCPManagerError(f"Server '{server_name}' is not connected")
 
             session = self._sessions[server_name]
             result = await session.list_tools()
@@ -200,9 +310,7 @@ class MCPManager:
         """
         if server_name:
             if server_name not in self._sessions:
-                raise MCPManagerError(
-                    f"Server '{server_name}' is not connected"
-                )
+                raise MCPManagerError(f"Server '{server_name}' is not connected")
 
             session = self._sessions[server_name]
             result = await session.list_resources()
@@ -235,9 +343,7 @@ class MCPManager:
         """
         if server_name:
             if server_name not in self._sessions:
-                raise MCPManagerError(
-                    f"Server '{server_name}' is not connected"
-                )
+                raise MCPManagerError(f"Server '{server_name}' is not connected")
 
             session = self._sessions[server_name]
             result = await session.list_prompts()
@@ -333,6 +439,20 @@ class MCPManager:
         """Synchronous wrapper for cleanup."""
         asyncio.run(self.cleanup())
 
+    def _get_session_id(self, server_name: str) -> Optional[str]:
+        """Get the session ID for an HTTP server.
+
+        Args:
+            server_name: Name of the server
+
+        Returns:
+            Session ID if available, None otherwise
+        """
+        callback = self._session_id_callbacks.get(server_name)
+        if callback:
+            return callback()
+        return None
+
     def connect_server_sync(self, server_name: str) -> None:
         """Synchronous wrapper for connect_server."""
         asyncio.run(self.connect_server(server_name))
@@ -341,9 +461,7 @@ class MCPManager:
         """Synchronous wrapper for disconnect_server."""
         asyncio.run(self.disconnect_server(server_name))
 
-    def get_tools_sync(
-        self, server_name: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    def get_tools_sync(self, server_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """Synchronous wrapper for get_tools."""
         return asyncio.run(self.get_tools(server_name))
 
@@ -365,9 +483,7 @@ class MCPManager:
         """Synchronous wrapper for call_tool."""
         return asyncio.run(self.call_tool(server_name, tool_name, arguments))
 
-    def read_resource_sync(
-        self, server_name: str, resource_uri: str
-    ) -> Dict[str, Any]:
+    def read_resource_sync(self, server_name: str, resource_uri: str) -> Dict[str, Any]:
         """Synchronous wrapper for read_resource."""
         return asyncio.run(self.read_resource(server_name, resource_uri))
 
@@ -378,6 +494,4 @@ class MCPManager:
         arguments: Dict[str, Any] = None,
     ) -> Dict[str, Any]:
         """Synchronous wrapper for get_prompt."""
-        return asyncio.run(
-            self.get_prompt(server_name, prompt_name, arguments)
-        )
+        return asyncio.run(self.get_prompt(server_name, prompt_name, arguments))

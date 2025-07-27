@@ -96,9 +96,7 @@ class TestGeminiChatbot:
     @patch("src.chatbot.GeminiClient")
     @patch("src.chatbot.os.makedirs")
     @patch("src.chatbot.sys.exit")
-    def test_initialize_failure(
-        self, mock_exit, mock_makedirs, mock_gemini_client
-    ):
+    def test_initialize_failure(self, mock_exit, mock_makedirs, mock_gemini_client):
         """Test initialization failure handling."""
         mock_gemini_client.side_effect = Exception("API Error")
 
@@ -158,9 +156,7 @@ class TestGeminiChatbot:
 
     @patch("src.chatbot.Console")
     @patch("src.chatbot.os.makedirs")
-    def test_display_history_with_content(
-        self, mock_makedirs, mock_console_class
-    ):
+    def test_display_history_with_content(self, mock_makedirs, mock_console_class):
         """Test displaying chat history with content."""
         chatbot = GeminiChatbot()
         chatbot.console = Mock()
@@ -277,9 +273,7 @@ class TestGeminiChatbot:
         result = chatbot.process_command("/mcp connect test-server")
 
         assert result is True
-        chatbot.mcp_manager.connect_server_sync.assert_called_once_with(
-            "test-server"
-        )
+        chatbot.mcp_manager.connect_server_sync.assert_called_once_with("test-server")
         chatbot.console.print.assert_called_with(
             "[green]✅ Connected to MCP server: test-server[/green]"
         )
@@ -361,9 +355,7 @@ class TestGeminiChatbot:
         result = chatbot.process_command("/mcp list")
 
         assert result is True
-        chatbot.console.print.assert_called_with(
-            "[red]❌ MCP is not available[/red]"
-        )
+        chatbot.console.print.assert_called_with("[red]❌ MCP is not available[/red]")
 
     @patch("src.chatbot.os.makedirs")
     def test_process_command_unknown(self, mock_makedirs):
@@ -430,9 +422,7 @@ class TestGeminiChatbot:
         chatbot.prune_command_history()
 
         mock_remove.assert_not_called()
-        chatbot.console.print.assert_called_with(
-            "[dim]Command history preserved[/dim]"
-        )
+        chatbot.console.print.assert_called_with("[dim]Command history preserved[/dim]")
 
     @patch("src.chatbot.prompt")
     @patch("src.chatbot.os.path.exists")
@@ -518,9 +508,7 @@ class TestGeminiChatbot:
                 # Should continue without processing
                 continue
             # If we get here, input wasn't empty
-            assert (
-                False
-            ), f"Input '{user_input}' should have been considered empty"
+            assert False, f"Input '{user_input}' should have been considered empty"
 
         # Client should not be called for empty inputs
         chatbot.client.send_message.assert_not_called()

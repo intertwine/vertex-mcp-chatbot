@@ -109,9 +109,7 @@ class TestMain:
         with patch("builtins.print") as mock_print:
             main()
 
-        mock_print.assert_called_with(
-            "\nError: Initialization error", file=sys.stderr
-        )
+        mock_print.assert_called_with("\nError: Initialization error", file=sys.stderr)
         mock_exit.assert_called_once_with(1)
 
     def test_argument_parser_setup(self):
@@ -123,9 +121,7 @@ class TestMain:
 
                 main()
 
-                mock_chatbot_class.assert_called_once_with(
-                    model_name="gemini-1.5-pro"
-                )
+                mock_chatbot_class.assert_called_once_with(model_name="gemini-1.5-pro")
 
     def test_argument_parser_help_text(self):
         """Test that help text is properly configured."""

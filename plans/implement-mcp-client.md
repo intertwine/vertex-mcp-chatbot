@@ -324,8 +324,8 @@ The MCP client will be integrated as a new component that works alongside the ex
    - Resource embedding in prompts
    - Prompt template usage
 
-3. **Phase 3**: Advanced features
-   - HTTP/SSE transport support
+3. **Phase 3**: Advanced features *(IN PROGRESS)*
+   - HTTP/SSE transport support *(COMPLETE - Increment 1)*
    - Multi-server coordination
    - Authentication handling
 
@@ -573,6 +573,49 @@ All three increments of Phase 2 are now complete. The chatbot can:
 1. Execute MCP tools naturally during conversations
 2. Automatically read and embed MCP resources when referenced
 3. Use MCP prompt templates to enhance interactions
+
+### Phase 3: Advanced Features (IN PROGRESS)
+
+#### 2025-01-27 - Phase 3 Increment 1: HTTP/SSE Transport Support
+**Completed:**
+- ✅ Created `tests/test_mcp_http_transport.py` with 9 comprehensive tests:
+  - HTTP server connection with basic configuration
+  - HTTP server connection with authentication (Basic Auth)
+  - HTTP server connection failure handling
+  - Synchronous wrapper for HTTP connection
+  - SSE server connection
+  - SSE server connection failure handling
+  - Operations over HTTP transport (get_tools, call_tool)
+  - Session ID callback functionality
+- ✅ Updated `src/mcp_manager.py` to support HTTP and SSE transports:
+  - Added imports for `streamablehttp_client` and `sse_client` from MCP SDK
+  - Added `HTTP_TRANSPORT_AVAILABLE` flag to check for httpx availability
+  - Implemented `_connect_http_server()` method for HTTP transport
+  - Implemented `_connect_sse_server()` method for SSE transport
+  - Added support for Basic Auth and custom headers
+  - Added `_session_id_callbacks` tracking for HTTP session management
+  - Added `_get_session_id()` method to retrieve session IDs
+- ✅ Updated existing test to check for httpx availability
+- ✅ All 154 tests passing
+- ✅ Code formatted and linted
+
+**Technical Implementation:**
+- **Streamable HTTP Transport**: Uses `streamablehttp_client` which provides:
+  - HTTP POST for requests
+  - Optional SSE streaming for responses
+  - Session ID management via headers
+  - Returns tuple of (read_stream, write_stream, get_session_id_callback)
+- **SSE Transport**: Uses `sse_client` for Server-Sent Events:
+  - Simpler than Streamable HTTP but deprecated
+  - Returns tuple of (read_stream, write_stream)
+- **Authentication**: Supports Basic Auth with username/password
+- **Headers**: Custom headers can be passed to both transports
+- **Error Handling**: Graceful fallback when httpx not available
+
+**Next Steps:**
+- Implement OAuth authentication support
+- Add connection retry logic
+- Implement multi-server coordination features
 
 
 

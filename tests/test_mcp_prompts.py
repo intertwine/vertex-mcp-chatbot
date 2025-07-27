@@ -57,13 +57,9 @@ class TestMCPPrompts:
         # Should print header and prompts
         assert chatbot.console.print.call_count >= 3
         # Verify prompt details are shown
-        call_args = [
-            str(call) for call in chatbot.console.print.call_args_list
-        ]
+        call_args = [str(call) for call in chatbot.console.print.call_args_list]
         assert any("analyze_code" in str(arg) for arg in call_args)
-        assert any(
-            "Analyze code for best practices" in str(arg) for arg in call_args
-        )
+        assert any("Analyze code for best practices" in str(arg) for arg in call_args)
 
     @patch("src.chatbot.os.makedirs")
     def test_mcp_prompts_no_servers(self, mock_makedirs):
@@ -76,9 +72,7 @@ class TestMCPPrompts:
         result = chatbot.process_command("/mcp prompts")
 
         assert result is True
-        chatbot.console.print.assert_called_with(
-            "[dim]No MCP servers connected[/dim]"
-        )
+        chatbot.console.print.assert_called_with("[dim]No MCP servers connected[/dim]")
 
     @patch("src.chatbot.os.makedirs")
     def test_mcp_prompts_no_prompts(self, mock_makedirs):
@@ -152,9 +146,7 @@ class TestMCPPrompts:
             return_value="I'll analyze the Python code for best practices..."
         )
 
-        result = chatbot.process_command(
-            "/mcp prompt analyze_code language=python"
-        )
+        result = chatbot.process_command("/mcp prompt analyze_code language=python")
 
         assert result is True
         chatbot.mcp_manager.get_prompt_sync.assert_called_once_with(
@@ -274,9 +266,7 @@ class TestMCPPrompts:
         assert any(p["name"] == "analyze_code" for p in suggestions)
 
         # Should suggest error-related prompts
-        suggestions = chatbot._suggest_prompts_for_query(
-            "I'm getting an error message"
-        )
+        suggestions = chatbot._suggest_prompts_for_query("I'm getting an error message")
         assert any(p["name"] == "explain_error" for p in suggestions)
 
         # Should return empty for unrelated queries
