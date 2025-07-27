@@ -2,7 +2,7 @@
 
 import sys
 import os
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, List
 from prompt_toolkit import prompt
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
@@ -248,6 +248,7 @@ class GeminiChatbot:
 
 - **/mcp connect <server>** - Connect to an MCP server
 - **/mcp list** - List configured servers and connection status
+- **/mcp resources** - List available resources from connected servers
 - **/mcp disconnect <server>** - Disconnect from an MCP server
 
 # Tips
@@ -379,6 +380,7 @@ class GeminiChatbot:
             self.console.print("[bold]MCP Commands:[/bold]")
             self.console.print("  /mcp connect <server> - Connect to a server")
             self.console.print("  /mcp list - List servers and status")
+            self.console.print("  /mcp resources - List available resources")
             self.console.print(
                 "  /mcp disconnect <server> - Disconnect from a server"
             )
@@ -394,6 +396,8 @@ class GeminiChatbot:
         elif subcommand == "disconnect" and len(parts) > 2:
             server_name = parts[2]
             self.mcp_disconnect(server_name)
+        elif subcommand == "resources":
+            self.mcp_list_resources()
         else:
             self.console.print(f"[red]Invalid MCP command: {command}[/red]")
             self.console.print("[dim]Type '/mcp' for usage[/dim]")
@@ -436,6 +440,41 @@ class GeminiChatbot:
             )
         except Exception as e:
             self.console.print(f"[red]❌ Failed to disconnect: {e}[/red]")
+
+    def mcp_list_resources(self):
+        """List available MCP resources."""
+        servers = self.mcp_manager.list_servers()
+        connected_servers = [s for s in servers if s["connected"]]
+
+        if not connected_servers:
+            self.console.print("[dim]No MCP servers connected[/dim]")
+            return
+
+        try:
+            resources = self.mcp_manager.get_resources_sync()
+
+            if not resources:
+                self.console.print(
+                    "[dim]No resources available from connected servers[/dim]"
+                )
+                return
+
+            self.console.print("\n[bold]MCP Resources:[/bold]")
+            for resource in resources:
+                server = resource.get("server", "unknown")
+                name = resource.get("name", "Unnamed")
+                uri = resource.get("uri", "")
+                desc = resource.get("description", "No description")
+                mime = resource.get("mimeType", "unknown")
+
+                self.console.print(f"\n• {name} (from {server})")
+                self.console.print(f"  URI: {uri}")
+                self.console.print(f"  Type: {mime}")
+                self.console.print(f"  Description: {desc}")
+            self.console.print()
+
+        except Exception as e:
+            self.console.print(f"[red]❌ Failed to list resources: {e}[/red]")
 
     def prune_command_history(self):
         """Clear the local command history file with confirmation."""
@@ -598,27 +637,138 @@ class GeminiChatbot:
         except Exception as e:
             return f"Error executing tool '{tool_name}': {str(e)}"
 
+    def _format_mcp_resources_context(self) -> str:
+        """Format available MCP resources as context for Gemini."""
+        if not self.mcp_manager:
+            return ""
+
+        servers = self.mcp_manager.list_servers()
+        connected_servers = [s for s in servers if s["connected"]]
+
+        if not connected_servers:
+            return ""
+
+        try:
+            resources = self.mcp_manager.get_resources_sync()
+            if not resources:
+                return ""
+
+            context = "\nAvailable MCP Resources:\n"
+            for resource in resources:
+                context += f"\n- Resource: {resource.get('name', 'Unnamed')} (from {resource.get('server', 'unknown')})\n"
+                context += f"  URI: {resource.get('uri', '')}\n"
+                context += f"  Description: {resource.get('description', 'No description')}\n"
+                if "mimeType" in resource:
+                    context += f"  Type: {resource['mimeType']}\n"
+
+            return context
+        except Exception:
+            return ""
+
+    def _detect_resource_reference(self, text: str) -> List[str]:
+        """Detect resource URIs referenced in text.
+
+        Returns:
+            List of resource URIs found in the text.
+        """
+        import re
+
+        # Pattern to match common resource URI schemes
+        # Matches: file:///path, github:repo/file, db://table, etc.
+        pattern = (
+            r'(?:file://|github:|db://|https?://|resource://)[^\s,;"\'\?!]+'
+        )
+
+        matches = re.findall(pattern, text)
+        return matches
+
+    def _find_resource_server(self, resource_uri: str) -> Optional[str]:
+        """Find which server provides a specific resource."""
+        if not self.mcp_manager:
+            return None
+
+        try:
+            resources = self.mcp_manager.get_resources_sync()
+            for resource in resources:
+                if resource.get("uri") == resource_uri:
+                    return resource.get("server")
+            return None
+        except Exception:
+            return None
+
+    def _read_mcp_resource(self, server_name: str, resource_uri: str) -> str:
+        """Read an MCP resource and return its content."""
+        try:
+            result = self.mcp_manager.read_resource_sync(
+                server_name, resource_uri
+            )
+
+            # Extract content from the result
+            if "contents" in result and isinstance(result["contents"], list):
+                for content in result["contents"]:
+                    # Handle text content
+                    if "text" in content:
+                        return content["text"]
+                    # Handle binary content
+                    elif "blob" in content:
+                        mime_type = content.get("mimeType", "unknown")
+                        return f"[Binary content: {mime_type}]"
+
+            return f"Resource content: {json.dumps(result)}"
+
+        except Exception as e:
+            return f"Error reading resource '{resource_uri}': {str(e)}"
+
     def _process_chat_message(self, user_input: str):
-        """Process a chat message with potential MCP tool integration."""
-        # Get MCP tools context
+        """Process a chat message with potential MCP tool and resource integration."""
+        # Check for resource references in the user input
+        resource_refs = self._detect_resource_reference(user_input)
+        resource_contents = {}
+
+        # Read any referenced resources
+        if resource_refs and self.mcp_manager:
+            for resource_uri in resource_refs:
+                server_name = self._find_resource_server(resource_uri)
+                if server_name:
+                    with self.console.status(
+                        f"[dim]Reading {resource_uri}...[/dim]"
+                    ):
+                        content = self._read_mcp_resource(
+                            server_name, resource_uri
+                        )
+                        resource_contents[resource_uri] = content
+
+        # Get MCP contexts
         tools_context = self._format_mcp_tools_context()
+        resources_context = self._format_mcp_resources_context()
 
-        # Send message to Gemini with tools context if available
+        # Build the enhanced user message with resource contents
+        enhanced_message = user_input
+        if resource_contents:
+            enhanced_message = (
+                f"{user_input}\n\n--- Referenced Resources ---\n"
+            )
+            for uri, content in resource_contents.items():
+                enhanced_message += f"\nContent of {uri}:\n{content}\n"
+
+        # Build system instruction
         system_instruction = None
-        if tools_context:
-            system_instruction = f"""You are a helpful assistant with access to external tools via MCP (Model Context Protocol).
+        if tools_context or resources_context:
+            system_instruction = "You are a helpful assistant with access to external tools and resources via MCP (Model Context Protocol)."
 
-{tools_context}
+            if tools_context:
+                system_instruction += f"\n{tools_context}"
+                system_instruction += "\nWhen a user asks for something that could benefit from using one of these tools, mention that you'll use the appropriate tool."
 
-When a user asks for something that could benefit from using one of these tools, mention that you'll use the appropriate tool. For example:
-- "Let me use the get_weather tool to check that for you."
-- "I'll use the calculate_sum tool with those values."
-
-Always be explicit about which tool you're using and what parameters you're passing."""
+            if resources_context:
+                system_instruction += f"\n{resources_context}"
+                system_instruction += "\nThese resources can be accessed when the user references them by URI."
 
         # Get response from Gemini
         with self.console.status("[dim]Thinking...[/dim]"):
-            response = self.client.send_message(user_input, system_instruction)
+            response = self.client.send_message(
+                enhanced_message, system_instruction
+            )
 
         # Display initial response
         self.display_response(response)

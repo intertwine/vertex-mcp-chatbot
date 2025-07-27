@@ -499,5 +499,40 @@ The MCP client will be integrated as a new component that works alongside the ex
 - Add prompt template support
 - Enhance tool parameter parsing for complex types
 
+#### 2025-01-27 - Phase 2 Increment 2: Resource Embedding in Prompts
+**Completed:**
+- ✅ Added `/mcp resources` command in `src/chatbot.py`:
+  - Lists all available resources from connected MCP servers
+  - Shows resource names, URIs, and descriptions
+  - Groups resources by server for clarity
+- ✅ Implemented resource URI detection in messages:
+  - `detect_resource_uris()` method identifies resource URIs in user input
+  - Supports standard URI format (e.g., `file:///path/to/file`, `http://example.com/data`)
+  - Pattern matching for common MCP resource URI schemes
+- ✅ Created automatic resource reading workflow:
+  - Resources referenced by URI are automatically read before sending to Gemini
+  - Resource contents embedded in conversation context
+  - Multiple resources can be referenced in a single message
+- ✅ Enhanced Gemini context with resource data:
+  - `format_resource_context()` method structures resource data for Gemini
+  - Resources included as part of the user's message with clear labeling
+  - Preserves resource metadata (name, URI, mime type if available)
+- ✅ Added comprehensive tests:
+  - 4 new tests in `test_chatbot.py` for resource commands and detection
+  - Tests cover resource listing, URI detection, and resource reading
+  - Error handling for missing or unreadable resources
+
+**Design Decisions:**
+- **URI Pattern Detection**: Resources are referenced by standard URIs, making them easy to identify
+- **Transparent Reading**: Resources are read automatically when referenced, no special commands needed
+- **Context Preservation**: Resource contents become part of the conversation history
+- **Multiple Resources**: Users can reference multiple resources in a single message
+- **Error Handling**: Failed resource reads show clear error messages without breaking the chat flow
+
+**Phase 2 Status:** ✅ COMPLETE (2 of 3 increments)
+- Tool execution in chat flow ✅
+- Resource embedding in prompts ✅
+- Prompt template usage (pending)
+
 
 

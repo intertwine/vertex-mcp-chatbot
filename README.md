@@ -104,6 +104,7 @@ While chatting, you can use these commands:
 - `/mcp connect <server>` - Connect to an MCP server from your config
 - `/mcp list` - Show configured servers and their connection status
 - `/mcp disconnect <server>` - Disconnect from an MCP server
+- `/mcp resources` - Show available resources from all connected servers
 
 ### MCP Tool Integration
 
@@ -114,6 +115,23 @@ When MCP servers are connected, their tools become automatically available durin
 - Include the tool results in its response
 
 For example, if you have a weather MCP server connected and ask "What's the weather like?", Gemini will automatically use the weather tool to get current conditions.
+
+### MCP Resource Integration
+
+MCP resources are automatically read when you reference them by URI in your messages. This allows you to seamlessly include external data in your conversations:
+
+- **Automatic Detection**: When you include a resource URI in your message, it's automatically detected
+- **Transparent Reading**: The resource content is fetched and included in the context sent to Gemini
+- **Multiple Resources**: You can reference multiple resources in a single message
+- **Standard URI Format**: Use standard URIs like `file:///path/to/data.json` or `http://example.com/api/data`
+
+**Example:**
+```
+You> Can you analyze the data in file:///home/user/sales_report.csv?
+
+[The chatbot automatically reads the CSV file and includes its content in the prompt to Gemini, 
+who can then analyze and discuss the data]
+```
 
 ### Example Session
 
