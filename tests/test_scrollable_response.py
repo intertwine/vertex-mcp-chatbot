@@ -1,15 +1,26 @@
 """Tests for scrollable response functionality."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock, AsyncMock
 from io import StringIO
+import sys
+
+# Mock MCP modules before importing chatbot
+sys.modules['src.mcp_config'] = Mock()
+sys.modules['src.mcp_manager'] = Mock()
+
+# Suppress runtime warnings about unawaited coroutines in this test module
+pytestmark = pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
+
 from src.chatbot import GeminiChatbot
 
 
 class TestScrollableResponse:
     """Test cases for the scrollable response display functionality."""
 
-    def setup_method(self):
+    @patch("src.chatbot.MCP_AVAILABLE", False)  # Disable MCP
+    @patch("src.chatbot.os.makedirs")
+    def setup_method(self, method, mock_makedirs):
         """Set up test fixtures."""
         self.chatbot = GeminiChatbot()
         self.chatbot.console = Mock()
@@ -18,7 +29,9 @@ class TestScrollableResponse:
         self.chatbot.console.size.width = 80
         self.chatbot.console.size.height = 24
 
-    def test_short_response_displays_normally(self):
+    @patch("src.chatbot.MCP_AVAILABLE", False)  # Disable MCP
+    @patch("src.chatbot.os.makedirs")
+    def test_short_response_displays_normally(self, mock_makedirs):
         """Test that short responses are displayed normally without scrolling."""
         short_response = "This is a short response."
 
@@ -196,6 +209,7 @@ class TestScrollableResponse:
 class TestScrollableResponseIntegration:
     """Integration tests for scrollable response functionality."""
 
+    @patch("src.chatbot.MCP_AVAILABLE", False)  # Disable MCP
     @patch("src.chatbot.GeminiClient")
     def test_end_to_end_scrollable_flow(self, mock_gemini_client):
         """Test the complete flow from response to scrollable display."""
@@ -242,16 +256,17 @@ class TestScrollableResponseIntegration:
 class TestScrollableHistory:
     """Test cases for the scrollable history display functionality."""
 
-    def setup_method(self):
+    def setup_method(self, method):
         """Set up test fixtures."""
-        self.chatbot = GeminiChatbot()
-        self.chatbot.console = Mock()
-        self.chatbot.console.size = Mock()
-        self.chatbot.console.size.width = 80
-        self.chatbot.console.size.height = 24
+        with patch("src.chatbot.MCP_AVAILABLE", False):  # Disable MCP
+            self.chatbot = GeminiChatbot()
+            self.chatbot.console = Mock()
+            self.chatbot.console.size = Mock()
+            self.chatbot.console.size.width = 80
+            self.chatbot.console.size.height = 24
 
-        # Mock client
-        self.chatbot.client = Mock()
+            # Mock client
+            self.chatbot.client = Mock()
 
     def test_empty_history_displays_normally(self):
         """Test that empty history displays a simple message."""

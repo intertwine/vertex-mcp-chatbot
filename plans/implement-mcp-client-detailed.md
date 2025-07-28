@@ -710,5 +710,54 @@ All three increments of Phase 2 are now complete. The chatbot can:
 - Add connection retry logic with exponential backoff
 - Implement token refresh flow for expired access tokens
 
+#### 2025-01-28 - Phase 3 Increment 4: Connection Retry Logic
+**Completed:**
+- ✅ Created `tests/test_mcp_retry.py` with 11 comprehensive tests:
+  - Retry on connection failure with exponential backoff
+  - Maximum retry attempts enforcement
+  - Jitter application for retry delays
+  - Default retry configuration
+  - Custom retry configuration merging
+  - Retry logging verification
+  - Immediate success without retries
+- ✅ Implemented retry logic in `src/mcp_manager.py`:
+  - `_connect_with_retry()` method orchestrates retry attempts
+  - `_calculate_backoff_delay()` implements exponential backoff with jitter
+  - `_get_retry_config()` merges custom and default configurations
+  - Support for all transport types (stdio, HTTP, SSE)
+  - Comprehensive error logging with attempt tracking
+- ✅ Updated `mcp_config.json.example` with retry examples:
+  - Server with custom retry configuration
+  - Server with max_attempts=1 (effectively no retry)
+  - Demonstration of all retry parameters
+- ✅ All 187 tests passing
+- ✅ Code formatted and linted
+
+**Technical Implementation:**
+- **Exponential Backoff**: delay = initial_delay * (exponential_base ^ attempt)
+- **Jitter**: ±50% random variation to prevent thundering herd
+- **Max Delay Cap**: Prevents delays from growing unbounded
+- **Default Configuration**: 3 attempts, 1s initial delay, 2x backoff, 60s max
+- **Transport Agnostic**: Same retry logic for all connection types
+
+**Design Decisions:**
+- **Configurable Per Server**: Each server can have custom retry settings
+- **Sensible Defaults**: Works well without configuration
+- **Clear Logging**: Users can see retry attempts and delays
+- **Fail Fast Option**: Set max_attempts=1 to disable retries
+- **Resource Efficient**: Uses asyncio.sleep for non-blocking delays
+
+**Phase 3 Status:** ✅ COMPLETE
+All four increments of Phase 3 (Advanced Features) are now complete:
+1. HTTP/SSE transport support ✅
+2. Multi-server coordination ✅
+3. OAuth authentication ✅
+4. Connection retry logic ✅
+
+**Next Steps:**
+- Phase 4: Polish and documentation
+- Create example MCP servers
+- Performance optimization
+
 
 

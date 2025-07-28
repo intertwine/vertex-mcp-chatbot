@@ -55,6 +55,26 @@
         "redirect_uri": "http://localhost:8080/callback"
       },
       "priority": 1
+    },
+    {
+      "name": "example-retry-server",
+      "transport": "http",
+      "url": "http://unreliable-server.example.com/mcp",
+      "retry": {
+        "max_attempts": 5,
+        "initial_delay": 2.0,
+        "max_delay": 30.0,
+        "exponential_base": 2.0,
+        "jitter": true
+      }
+    },
+    {
+      "name": "example-no-retry-server",
+      "transport": "stdio",
+      "command": ["python", "critical_server.py"],
+      "retry": {
+        "max_attempts": 1
+      }
     }
   ]
 }

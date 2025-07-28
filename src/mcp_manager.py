@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import random
 from contextlib import AsyncExitStack
 from typing import Dict, List, Any, Optional, Tuple
 
@@ -101,24 +102,8 @@ class MCPManager:
         if not server_config:
             raise MCPManagerError(f"Server '{server_name}' not found in configuration")
 
-        transport = server_config["transport"]
-
-        if transport == "stdio":
-            await self._connect_stdio_server(server_name, server_config)
-        elif transport == "http":
-            if not HTTP_TRANSPORT_AVAILABLE:
-                raise MCPManagerError(
-                    "HTTP transport requires httpx. Install with: pip install httpx httpx-sse"
-                )
-            await self._connect_http_server(server_name, server_config)
-        elif transport == "sse":
-            if not HTTP_TRANSPORT_AVAILABLE:
-                raise MCPManagerError(
-                    "SSE transport requires httpx. Install with: pip install httpx httpx-sse"
-                )
-            await self._connect_sse_server(server_name, server_config)
-        else:
-            raise MCPManagerError(f"Unknown transport type: {transport}")
+        # Use retry logic for connection
+        await self._connect_with_retry(server_name, server_config)
 
     async def _connect_stdio_server(
         self, server_name: str, config: Dict[str, Any]
@@ -922,3 +907,145 @@ class MCPManager:
         # Check if expired (with 5 minute buffer)
         expires_at = token["expires_at"]
         return datetime.now().timestamp() < (expires_at - 300)
+
+    # Connection retry methods
+
+    def _get_retry_config(self, server_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Get retry configuration for a server.
+
+        Args:
+            server_config: Server configuration
+
+        Returns:
+            Retry configuration with defaults
+        """
+        default_retry = {
+            "max_attempts": 3,
+            "initial_delay": 1.0,
+            "max_delay": 60.0,
+            "exponential_base": 2.0,
+            "jitter": True,
+        }
+
+        # Get server-specific retry config
+        server_retry = server_config.get("retry", {})
+
+        # Merge with defaults
+        retry_config = default_retry.copy()
+        retry_config.update(server_retry)
+
+        return retry_config
+
+    def _calculate_backoff_delay(
+        self,
+        attempt: int,
+        initial_delay: float,
+        exponential_base: float,
+        max_delay: float,
+        jitter: bool,
+    ) -> float:
+        """Calculate exponential backoff delay.
+
+        Args:
+            attempt: Current attempt number (0-based)
+            initial_delay: Initial delay in seconds
+            exponential_base: Base for exponential calculation
+            max_delay: Maximum delay in seconds
+            jitter: Whether to add random jitter
+
+        Returns:
+            Delay in seconds
+        """
+        # Calculate exponential delay
+        delay = initial_delay * (exponential_base ** attempt)
+
+        # Cap at max delay
+        delay = min(delay, max_delay)
+
+        # Add jitter if enabled (±50% of delay)
+        if jitter:
+            jitter_range = delay * 0.5
+            delay = delay + (random.random() - 0.5) * jitter_range
+
+        return max(delay, 0)  # Ensure non-negative
+
+    async def _connect_with_retry(
+        self, server_name: str, server_config: Dict[str, Any]
+    ) -> None:
+        """Connect to a server with retry logic.
+
+        Args:
+            server_name: Name of the server
+            server_config: Server configuration
+
+        Raises:
+            MCPManagerError: If connection fails after all retries
+        """
+        retry_config = self._get_retry_config(server_config)
+        max_attempts = retry_config["max_attempts"]
+        
+        last_error = None
+        
+        for attempt in range(max_attempts):
+            try:
+                # Log attempt
+                if attempt > 0:
+                    logger.info(
+                        f"Connection attempt {attempt + 1}/{max_attempts} for {server_name}"
+                    )
+                
+                # Try to connect based on transport type
+                transport = server_config["transport"]
+                if transport == "stdio":
+                    await self._connect_stdio_server(server_name, server_config)
+                elif transport == "http":
+                    if not HTTP_TRANSPORT_AVAILABLE:
+                        raise MCPManagerError(
+                            "HTTP transport requires httpx. Install with: pip install httpx httpx-sse"
+                        )
+                    await self._connect_http_server(server_name, server_config)
+                elif transport == "sse":
+                    if not HTTP_TRANSPORT_AVAILABLE:
+                        raise MCPManagerError(
+                            "SSE transport requires httpx. Install with: pip install httpx httpx-sse"
+                        )
+                    await self._connect_sse_server(server_name, server_config)
+                else:
+                    raise MCPManagerError(f"Unknown transport type: {transport}")
+                
+                # Success!
+                if attempt > 0:
+                    logger.info(
+                        f"Connection successful on attempt {attempt + 1} for {server_name}"
+                    )
+                return
+                
+            except Exception as e:
+                last_error = e
+                
+                # Don't retry if this is the last attempt
+                if attempt >= max_attempts - 1:
+                    break
+                
+                # Calculate backoff delay
+                delay = self._calculate_backoff_delay(
+                    attempt,
+                    retry_config["initial_delay"],
+                    retry_config["exponential_base"],
+                    retry_config["max_delay"],
+                    retry_config["jitter"],
+                )
+                
+                logger.warning(
+                    f"Connection attempt {attempt + 1}/{max_attempts} failed for "
+                    f"{server_name}: {e}. Retrying in {delay:.1f}s..."
+                )
+                
+                # Wait before retry
+                await asyncio.sleep(delay)
+        
+        # All attempts failed
+        raise MCPManagerError(
+            f"Failed to connect to server '{server_name}' after {max_attempts} "
+            f"attempts: {last_error}"
+        )
