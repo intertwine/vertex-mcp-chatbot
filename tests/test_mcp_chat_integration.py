@@ -165,10 +165,17 @@ class TestMCPChatIntegration:
                 }
             ]
         )
+        chatbot.mcp_manager.get_resources_sync = Mock(
+            return_value=[]
+        )  # Empty resources list
+        chatbot.mcp_manager.get_server_priorities = Mock(return_value={})
 
-        # Mock the Gemini response that requests a tool
+        # Mock the Gemini response that requests a tool, then returns a clean final response
         chatbot.client.send_message = Mock(
-            return_value="I'll check the weather for you. Let me use the get_weather tool for New York."
+            side_effect=[
+                "I'll check the weather for you. Let me use the get_weather tool for New York.",
+                "The weather in New York is 72°F and sunny. Have a great day!",
+            ]
         )
 
         # Mock finding the best server for the tool
@@ -191,10 +198,12 @@ class TestMCPChatIntegration:
         # Process message
         chatbot._process_chat_message("What's the weather in New York?")
 
-        # Verify best server was found
-        chatbot.mcp_manager.find_best_server_for_tool_sync.assert_called_once_with(
+        # Verify best server was found (called once for the tool execution)
+        chatbot.mcp_manager.find_best_server_for_tool_sync.assert_called_with(
             "get_weather"
         )
+        # Should be called exactly once (not multiple times due to sequential detection)
+        assert chatbot.mcp_manager.find_best_server_for_tool_sync.call_count == 1
 
         # Verify tool was executed
         chatbot.mcp_manager.call_tool_sync.assert_called_once_with(
@@ -211,7 +220,7 @@ class TestMCPChatIntegration:
         """Test finding which server provides a specific tool."""
         chatbot = GeminiChatbot()
         chatbot.mcp_manager = Mock()
-        
+
         # Mock the find_best_server_for_tool_sync method
         chatbot.mcp_manager.find_best_server_for_tool_sync = Mock(
             side_effect=lambda tool_name: {

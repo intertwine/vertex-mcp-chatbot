@@ -10,6 +10,8 @@ from src.mcp_config import MCPConfig
 from tests.mock_mcp_types import create_mock_list_tools_result
 from tests.test_helpers import make_sync_run_handler
 
+# Suppress runtime warnings about unawaited coroutines in this test module
+pytestmark = pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
 
 @pytest.fixture
 def retry_config():

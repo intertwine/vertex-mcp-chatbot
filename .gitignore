@@ -26,7 +26,6 @@ ENV/
 *.log
 /mcp_config.json
 .mcp_tokens/
-test_mcp_*
 
 # Distribution / packaging
 dist/

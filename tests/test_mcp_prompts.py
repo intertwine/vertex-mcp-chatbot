@@ -4,6 +4,8 @@ import pytest
 from unittest.mock import Mock, patch
 from src.chatbot import GeminiChatbot
 
+# Suppress runtime warnings about unawaited coroutines in this test module
+pytestmark = pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
 
 class TestMCPPrompts:
     """Test MCP prompt template integration."""

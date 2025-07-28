@@ -532,3 +532,88 @@ class TestGeminiChatbot:
 
         # Should not raise any errors
         chatbot.cleanup()
+
+    @patch("src.chatbot.os.makedirs")
+    def test_detect_tool_request_sequential(self, mock_makedirs):
+        """Test tool detection for sequential tool calls."""
+        chatbot = GeminiChatbot()
+
+        # Test detection of create_secure_note tool call
+        response = """MCP Tool Call: create_secure_note(title='Weather in Albany', content='Current weather in Albany: Thunderstorms, -6°C, feels like -3°C. Humidity: 76%, Wind: 2 km/h.')"""
+
+        tool_name, arguments = chatbot._detect_tool_request(response)
+
+        assert tool_name == "create_secure_note"
+        assert arguments == {
+            "title": "Weather in Albany",
+            "content": "Current weather in Albany: Thunderstorms, -6°C, feels like -3°C. Humidity: 76%, Wind: 2 km/h.",
+        }
+
+    @patch("src.chatbot.os.makedirs")
+    def test_parse_tool_arguments_complex(self, mock_makedirs):
+        """Test parsing of complex tool arguments with nested parentheses."""
+        chatbot = GeminiChatbot()
+
+        # Test complex arguments with parentheses and special characters
+        args_str = "title='Weather in Albany', content='Current weather in Albany: Sunny, 29°C (feels like 28°C), Humidity: 54%, Wind: 11 km/h, Pressure: 1030 hPa, Visibility: 19 km.'"
+
+        result = chatbot._parse_tool_arguments(args_str)
+
+        expected = {
+            "title": "Weather in Albany",
+            "content": "Current weather in Albany: Sunny, 29°C (feels like 28°C), Humidity: 54%, Wind: 11 km/h, Pressure: 1030 hPa, Visibility: 19 km.",
+        }
+
+        assert result == expected
+
+    @patch("src.chatbot.os.makedirs")
+    def test_handle_sequential_tool_calls_max_depth(self, mock_makedirs):
+        """Test that sequential tool calls respect max depth limit."""
+        chatbot = GeminiChatbot()
+        chatbot.mcp_manager = Mock()
+        chatbot._detect_tool_request = Mock(
+            return_value=("test_tool", {"arg": "value"})
+        )
+        chatbot._find_tool_server = Mock(return_value="test_server")
+        chatbot._execute_mcp_tool = Mock(return_value="test result")
+        chatbot.client = Mock()
+        chatbot.client.send_message = Mock(
+            return_value="MCP Tool Call: test_tool(arg='value')"
+        )
+        chatbot.display_response = Mock()
+
+        # Call with max_depth=1 to test the limit
+        with patch.object(chatbot.console, "print") as mock_print:
+            chatbot._handle_sequential_tool_calls(
+                "test response", max_depth=1, current_depth=1
+            )
+
+            # Should not execute the tool due to depth limit
+            chatbot._execute_mcp_tool.assert_not_called()
+
+    @patch("src.chatbot.os.makedirs")
+    def test_handle_sequential_tool_calls_success(self, mock_makedirs):
+        """Test successful sequential tool call execution."""
+        chatbot = GeminiChatbot()
+        chatbot.mcp_manager = Mock()
+        chatbot._find_tool_server = Mock(return_value="test_server")
+        chatbot._execute_mcp_tool = Mock(return_value="test result")
+        chatbot.client = Mock()
+        chatbot.client.send_message = Mock(return_value="Success! Tool executed.")
+        chatbot.display_response = Mock()
+
+        # Test response that contains a tool call
+        test_response = "MCP Tool Call: test_tool(arg='value')"
+
+        with patch.object(chatbot.console, "print") as mock_print:
+            # Call with depth 2 to prevent infinite recursion (since final response has no tool call)
+            chatbot._handle_sequential_tool_calls(
+                test_response, max_depth=3, current_depth=2
+            )
+
+            # Should execute the tool once
+            chatbot._execute_mcp_tool.assert_called_once_with(
+                "test_server", "test_tool", {"arg": "value"}
+            )
+            chatbot.client.send_message.assert_called_once()
+            chatbot.display_response.assert_called_once_with("Success! Tool executed.")

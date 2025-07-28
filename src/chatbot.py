@@ -48,7 +48,7 @@ class GeminiChatbot:
         self.chat_dir = ".chat"
         os.makedirs(self.chat_dir, exist_ok=True)
         self.history_file = os.path.join(self.chat_dir, "log.txt")
-        
+
         # Flag to force new chat session when MCP servers change
         self._force_new_session = False
 
@@ -117,7 +117,7 @@ class GeminiChatbot:
     def _display_scrollable_content(self, rendered_content: str, title: str):
         """Display content in a scrollable interface."""
         lines = rendered_content.split("\n")
-        
+
         try:
             # Create key bindings for scrolling
             kb = KeyBindings()
@@ -141,7 +141,9 @@ class GeminiChatbot:
                     if prev_newline == -1:
                         buffer.cursor_position = 0
                     else:
-                        prev_prev_newline = current_text.rfind("\n", 0, prev_newline - 1)
+                        prev_prev_newline = current_text.rfind(
+                            "\n", 0, prev_newline - 1
+                        )
                         buffer.cursor_position = (
                             prev_prev_newline + 1 if prev_prev_newline != -1 else 0
                         )
@@ -220,7 +222,9 @@ class GeminiChatbot:
             )
 
             content_type = title.lower()
-            self.console.print(f"\n[dim]{title} is long. Opening scrollable view...[/dim]")
+            self.console.print(
+                f"\n[dim]{title} is long. Opening scrollable view...[/dim]"
+            )
             self.console.print(
                 "[dim]Use arrow keys or j/k to scroll, q/Esc to exit[/dim]\n"
             )
@@ -232,7 +236,9 @@ class GeminiChatbot:
             except OSError as e:
                 if e.errno == 22:  # EINVAL - Invalid argument
                     # Fallback: just print the content without scrolling
-                    self.console.print(f"\n[yellow]Cannot display scrollable view in this terminal.[/yellow]")
+                    self.console.print(
+                        f"\n[yellow]Cannot display scrollable view in this terminal.[/yellow]"
+                    )
                     self.console.print("[dim]Displaying content directly:[/dim]\n")
                     self.console.print(rendered_content)
                 else:
@@ -241,7 +247,9 @@ class GeminiChatbot:
             self.console.print("[dim]Returned to chat[/dim]\n")
         except Exception as e:
             # If any error in setting up the scrollable view, just print normally
-            self.console.print(f"\n[yellow]Unable to display scrollable view: {e}[/yellow]")
+            self.console.print(
+                f"\n[yellow]Unable to display scrollable view: {e}[/yellow]"
+            )
             self.console.print("[dim]Displaying content directly:[/dim]\n")
             self.console.print(rendered_content)
 
@@ -487,15 +495,13 @@ class GeminiChatbot:
                 tools_by_name[tool_name].append(tool)
 
             self.console.print("\n[bold]MCP Tools:[/bold]")
-            
+
             # Show each tool, indicating server conflicts
             for tool_name, tool_instances in sorted(tools_by_name.items()):
                 if len(tool_instances) == 1:
                     # Single server provides this tool
                     tool = tool_instances[0]
-                    self.console.print(
-                        f"\n• {tool_name} (from {tool['server']})"
-                    )
+                    self.console.print(f"\n• {tool_name} (from {tool['server']})")
                     self.console.print(
                         f"  Description: {tool.get('description', 'No description')}"
                     )
@@ -504,30 +510,34 @@ class GeminiChatbot:
                     self.console.print(
                         f"\n• {tool_name} [yellow](available from multiple servers)[/yellow]"
                     )
-                    
+
                     # Get server priorities
                     priorities = self.mcp_manager.get_server_priorities()
-                    
+
                     # Sort by priority
                     sorted_instances = sorted(
                         tool_instances,
-                        key=lambda t: priorities.get(t["server"], float("inf"))
+                        key=lambda t: priorities.get(t["server"], float("inf")),
                     )
-                    
+
                     # Show each server's version
                     for i, tool in enumerate(sorted_instances):
                         priority = priorities.get(tool["server"], float("inf"))
-                        priority_text = f" [green](priority {priority})[/green]" if priority != float("inf") else ""
+                        priority_text = (
+                            f" [green](priority {priority})[/green]"
+                            if priority != float("inf")
+                            else ""
+                        )
                         prefix = "  → " if i == 0 else "    "
                         self.console.print(
                             f"{prefix}{tool['server']}{priority_text}: {tool.get('description', 'No description')}"
                         )
-                    
+
                     if sorted_instances:
                         self.console.print(
                             f"  [dim]Will use: {sorted_instances[0]['server']}[/dim]"
                         )
-            
+
             self.console.print()
 
         except Exception as e:
@@ -554,7 +564,7 @@ class GeminiChatbot:
                 return
 
             self.console.print("\n[bold]MCP Resources:[/bold]")
-            
+
             # Show static resources
             if resources:
                 self.console.print("\n[cyan]Static Resources:[/cyan]")
@@ -569,7 +579,7 @@ class GeminiChatbot:
                     self.console.print(f"  URI: {uri}")
                     self.console.print(f"  Type: {mime}")
                     self.console.print(f"  Description: {desc}")
-            
+
             # Show resource templates
             if templates:
                 self.console.print("\n[cyan]Resource Templates:[/cyan]")
@@ -584,7 +594,7 @@ class GeminiChatbot:
                     self.console.print(f"  URI Template: {uri_template}")
                     self.console.print(f"  Type: {mime}")
                     self.console.print(f"  Description: {desc}")
-            
+
             self.console.print()
 
         except Exception as e:
@@ -715,29 +725,34 @@ class GeminiChatbot:
                 if tool_name not in tools_by_name:
                     tools_by_name[tool_name] = []
                 tools_by_name[tool_name].append(tool)
-            
+
             context = "\nAvailable MCP Tools:\n"
-            
+
             # If there are tools with the same name from different servers, note it
             has_conflicts = any(len(servers) > 1 for servers in tools_by_name.values())
             if has_conflicts:
                 context += "\nNote: Some tools are available from multiple servers. I will automatically select the best server based on context.\n"
-                
+
                 # Add specific notes about filesystem servers
-                filesystem_servers = [s['name'] for s in self.mcp_manager.list_servers() 
-                                    if s['connected'] and 'filesystem' in s['name']]
+                filesystem_servers = [
+                    s["name"]
+                    for s in self.mcp_manager.list_servers()
+                    if s["connected"] and "filesystem" in s["name"]
+                ]
                 if len(filesystem_servers) > 1:
                     context += f"\nFilesystem servers connected: {', '.join(filesystem_servers)}"
-                    context += "\n- 'filesystem' provides access to the current directory"
+                    context += (
+                        "\n- 'filesystem' provides access to the current directory"
+                    )
                     context += "\n- 'filesystem-examples' provides access to the examples directory"
-            
+
             # Show unique tools
             for tool_name, tool_instances in sorted(tools_by_name.items()):
                 tool = tool_instances[0]  # Use first instance for description
-                
+
                 context += f"\n- Tool: {tool_name}"
                 if len(tool_instances) > 1:
-                    servers = [t['server'] for t in tool_instances]
+                    servers = [t["server"] for t in tool_instances]
                     context += f" (available from: {', '.join(servers)})"
                 else:
                     context += f" (from {tool.get('server', 'unknown')})"
@@ -758,6 +773,7 @@ class GeminiChatbot:
         except Exception as e:
             logger.error(f"Error formatting MCP tools context: {e}")
             import traceback
+
             traceback.print_exc()
             return ""
 
@@ -771,32 +787,20 @@ class GeminiChatbot:
         """
         # Pattern 1: New format "MCP Tool Call: function_name(arg1=value1, arg2=value2)"
         # Also handle server-specific format "MCP Tool Call: server.function_name(args)"
-        mcp_pattern = r"MCP Tool Call:\s*(?:(\w+)\.)?(\w+)\((.*?)\)"
+        # Use a more robust pattern that handles nested parentheses
+        mcp_pattern = r"MCP Tool Call:\s*(?:(\w+)\.)?(\w+)\((.*)\)"
         mcp_match = re.search(mcp_pattern, response)
-        
+
         if mcp_match:
             server_prefix = mcp_match.group(1)  # Optional server name
             tool_name = mcp_match.group(2)
             args_str = mcp_match.group(3)
-            
-            # Parse arguments
+
+            # Parse arguments with improved handling of nested parentheses and quotes
             arguments = {}
             if args_str.strip():
-                # Split by comma but handle nested parentheses/quotes
-                import ast
-                try:
-                    # Try to evaluate as a Python function call
-                    # Create a safe dict-like string and evaluate it
-                    args_dict_str = "{" + args_str.replace("=", ":") + "}"
-                    # Replace single quotes in values with double quotes for JSON compatibility
-                    args_dict_str = re.sub(r"'([^']*)'", r'"\1"', args_dict_str)
-                    arguments = ast.literal_eval(args_dict_str)
-                except:
-                    # Fallback to simple parsing
-                    arg_matches = re.findall(r"(\w+)=['\"](.*?)['\"]", args_str)
-                    for arg_name, arg_value in arg_matches:
-                        arguments[arg_name] = arg_value
-            
+                arguments = self._parse_tool_arguments(args_str)
+
             return tool_name, arguments
 
         # Pattern 2: "Let me use the X tool" or "I'll use the X tool"
@@ -834,9 +838,185 @@ class GeminiChatbot:
 
         return tool_name, arguments if arguments else {}
 
+    def _parse_tool_arguments(self, args_str: str) -> Dict[str, Any]:
+        """Parse tool arguments from a string, handling nested parentheses and quotes.
+
+        Args:
+            args_str: The argument string to parse (e.g., "title='Test', content='Hello (world)'")
+
+        Returns:
+            Dictionary of parsed arguments
+        """
+        arguments = {}
+
+        # Try multiple parsing strategies
+
+        # Strategy 1: Use ast.literal_eval with proper dict format
+        try:
+            import ast
+
+            # Create a safe dict-like string and evaluate it
+            args_dict_str = "{" + args_str.replace("=", ":") + "}"
+            # Handle nested quotes more carefully
+            args_dict_str = re.sub(r"'([^']*)'", r'"\1"', args_dict_str)
+            arguments = ast.literal_eval(args_dict_str)
+            return arguments
+        except:
+            pass
+
+        # Strategy 2: Manual parsing with proper quote and parentheses handling
+        try:
+            # Split by commas but respect quoted strings
+            # First, we need to handle the key=value format
+            parts = []
+            current_part = ""
+            in_quotes = False
+            quote_char = None
+            paren_depth = 0
+
+            i = 0
+            while i < len(args_str):
+                char = args_str[i]
+
+                if char in ["'", '"'] and not in_quotes:
+                    in_quotes = True
+                    quote_char = char
+                    current_part += char
+                elif char == quote_char and in_quotes:
+                    in_quotes = False
+                    quote_char = None
+                    current_part += char
+                elif char == "(" and not in_quotes:
+                    paren_depth += 1
+                    current_part += char
+                elif char == ")" and not in_quotes:
+                    paren_depth -= 1
+                    current_part += char
+                elif char == "," and not in_quotes and paren_depth == 0:
+                    # This is a separator
+                    parts.append(current_part.strip())
+                    current_part = ""
+                else:
+                    current_part += char
+
+                i += 1
+
+            if current_part.strip():
+                parts.append(current_part.strip())
+
+            # Parse each part as key=value
+            for part in parts:
+                if "=" in part:
+                    key, value = part.split("=", 1)
+                    key = key.strip()
+                    value = value.strip()
+
+                    # Remove quotes from value
+                    if (value.startswith("'") and value.endswith("'")) or (
+                        value.startswith('"') and value.endswith('"')
+                    ):
+                        value = value[1:-1]
+
+                    arguments[key] = value
+
+            return arguments
+
+        except Exception as e:
+            logger.debug(f"Advanced parsing failed: {e}")
+
+        # Strategy 3: Fallback to simple regex matching
+        try:
+            # Use a more sophisticated regex that handles nested parentheses
+            arg_matches = re.findall(
+                r"(\w+)\s*=\s*['\"]([^'\"]*(?:\([^)]*\)[^'\"]*)*)['\"]", args_str
+            )
+            for arg_name, arg_value in arg_matches:
+                arguments[arg_name] = arg_value
+
+            if arguments:
+                return arguments
+
+        except Exception as e:
+            logger.debug(f"Regex parsing failed: {e}")
+
+        # Strategy 4: Last resort - very simple parsing
+        try:
+            # Simple word-based parsing
+            simple_matches = re.findall(r"(\w+)=['\"](.*?)['\"]", args_str)
+            for arg_name, arg_value in simple_matches:
+                arguments[arg_name] = arg_value
+
+        except Exception as e:
+            logger.debug(f"Simple parsing failed: {e}")
+
+        return arguments
+
+    def _handle_sequential_tool_calls(
+        self, response: str, max_depth: int = 3, current_depth: int = 0
+    ):
+        """Handle sequential tool calls in a response.
+
+        Args:
+            response: The response to check for tool calls
+            max_depth: Maximum recursion depth to prevent infinite loops
+            current_depth: Current recursion depth
+        """
+        if current_depth >= max_depth:
+            logger.warning(
+                f"Maximum tool call depth ({max_depth}) reached, stopping sequential execution"
+            )
+            return
+
+        # Check if response contains another tool call
+        tool_name, arguments = self._detect_tool_request(response)
+
+        if tool_name and self.mcp_manager:
+            # Find which server provides this tool
+            server_name = self._find_tool_server(tool_name)
+            logger.debug(
+                f"Sequential tool detected: tool_name={tool_name}, server={server_name}, depth={current_depth}"
+            )
+
+            if server_name:
+                # Execute the sequential tool
+                self.console.print(
+                    f"[dim]Executing sequential {tool_name} tool with args {arguments}...[/dim]"
+                )
+                try:
+                    tool_result = self._execute_mcp_tool(
+                        server_name, tool_name, arguments
+                    )
+                    logger.debug(f"Sequential tool result: {tool_result}")
+
+                    # Send tool result back to Gemini for final response
+                    follow_up = f"The {tool_name} tool returned: {tool_result}\n\nPlease provide a natural response to the user based on this result."
+
+                    with self.console.status(
+                        "[dim]Processing sequential tool result...[/dim]"
+                    ):
+                        final_response = self.client.send_message(follow_up)
+
+                    # Display final response
+                    self.display_response(final_response)
+
+                    # Recursively check for more tool calls
+                    self._handle_sequential_tool_calls(
+                        final_response, max_depth, current_depth + 1
+                    )
+
+                except Exception as e:
+                    logger.error(f"Error executing sequential tool {tool_name}: {e}")
+                    self.console.print(
+                        f"[red]Error executing sequential tool: {e}[/red]"
+                    )
+            else:
+                self.console.print(
+                    f"[yellow]Sequential tool '{tool_name}' not found in connected servers[/yellow]"
+                )
+
     def _find_tool_server(self, tool_name: str) -> Optional[str]:
         """Find which server provides a specific tool.
-        
+
         Uses server priority to select the best server when multiple
         servers provide the same tool.
         """
@@ -857,13 +1037,17 @@ class GeminiChatbot:
             result = self.mcp_manager.call_tool_sync(server_name, tool_name, arguments)
 
             # Handle CallToolResult object from MCP SDK
-            if hasattr(result, 'content'):
+            if hasattr(result, "content"):
                 # Extract content from the result object
                 content = result.content
                 if isinstance(content, list):
                     text_parts = []
                     for item in content:
-                        if hasattr(item, 'type') and item.type == "text" and hasattr(item, 'text'):
+                        if (
+                            hasattr(item, "type")
+                            and item.type == "text"
+                            and hasattr(item, "text")
+                        ):
                             text_parts.append(item.text)
                         elif isinstance(item, dict) and item.get("type") == "text":
                             text_parts.append(item.get("text", ""))
@@ -872,12 +1056,12 @@ class GeminiChatbot:
                         if text_parts
                         else "Tool executed successfully (no text output)"
                     )
-                elif hasattr(content, '__dict__'):
+                elif hasattr(content, "__dict__"):
                     # Convert object to dict for display
                     return f"Tool result: {json.dumps(content.__dict__)}"
                 else:
                     return f"Tool result: {str(content)}"
-            
+
             # Fallback for dict format
             elif isinstance(result, dict) and "content" in result:
                 text_parts = []
@@ -925,6 +1109,7 @@ class GeminiChatbot:
         except Exception as e:
             logger.error(f"Error formatting MCP tools context: {e}")
             import traceback
+
             traceback.print_exc()
             return ""
 
@@ -1025,7 +1210,7 @@ class GeminiChatbot:
         as a single message for Gemini.
         """
         # Handle Pydantic GetPromptResult object
-        if hasattr(prompt_result, 'messages'):
+        if hasattr(prompt_result, "messages"):
             messages = prompt_result.messages
         else:
             # Fallback for dict format
@@ -1035,16 +1220,22 @@ class GeminiChatbot:
         user_texts = []
         for msg in messages:
             # Handle message object or dict
-            role = msg.role if hasattr(msg, 'role') else msg.get("role")
+            role = msg.role if hasattr(msg, "role") else msg.get("role")
             if role == "user":
                 # Get content - could be an object or dict
-                content = msg.content if hasattr(msg, 'content') else msg.get("content", {})
-                
+                content = (
+                    msg.content if hasattr(msg, "content") else msg.get("content", {})
+                )
+
                 # Handle different content formats
-                if hasattr(content, 'text'):
+                if hasattr(content, "text"):
                     # TextContent object from MCP
                     user_texts.append(content.text)
-                elif hasattr(content, 'type') and content.type == 'text' and hasattr(content, 'text'):
+                elif (
+                    hasattr(content, "type")
+                    and content.type == "text"
+                    and hasattr(content, "text")
+                ):
                     # Alternative TextContent format
                     user_texts.append(content.text)
                 elif isinstance(content, dict) and content.get("type") == "text":
@@ -1136,7 +1327,9 @@ class GeminiChatbot:
                 system_instruction += "\n\nDo NOT say you don't have access to tools - use the MCP tools listed above."
                 system_instruction += "\n\nIMPORTANT: Do NOT prefix tool names with server names. Just use the tool name directly."
                 system_instruction += "\n\nWhen working with file tools:"
-                system_instruction += "\n- Each filesystem server has its own base directory"
+                system_instruction += (
+                    "\n- Each filesystem server has its own base directory"
+                )
                 system_instruction += "\n- For listing files in the current directory of a server, use: MCP Tool Call: list_files(directory='.')"
                 system_instruction += "\n- For listing files in a subdirectory, use: MCP Tool Call: list_files(directory='subdirectory')"
                 system_instruction += "\n- Do NOT use absolute paths or paths outside the server's base directory"
@@ -1152,13 +1345,17 @@ class GeminiChatbot:
         if self._force_new_session and self.client.chat_session:
             self.client.clear_chat()
             self._force_new_session = False
-            self.console.print("[dim]Starting new conversation with updated MCP tools...[/dim]")
-        
+            self.console.print(
+                "[dim]Starting new conversation with updated MCP tools...[/dim]"
+            )
+
         # Get response from Gemini
         with self.console.status("[dim]Thinking...[/dim]"):
             # Only pass system_instruction if it's not None
             if system_instruction:
-                response = self.client.send_message(enhanced_message, system_instruction)
+                response = self.client.send_message(
+                    enhanced_message, system_instruction
+                )
             else:
                 response = self.client.send_message(enhanced_message)
 
@@ -1167,8 +1364,10 @@ class GeminiChatbot:
 
         # Check if response indicates a tool should be called
         tool_name, arguments = self._detect_tool_request(response)
-        
-        logger.debug(f"Tool detection result: tool_name={tool_name}, arguments={arguments}")
+
+        logger.debug(
+            f"Tool detection result: tool_name={tool_name}, arguments={arguments}"
+        )
 
         if tool_name and self.mcp_manager:
             # Find which server provides this tool
@@ -1177,13 +1376,15 @@ class GeminiChatbot:
 
             if server_name:
                 # Execute the tool
-                self.console.print(f"[dim]Executing {tool_name} tool with args {arguments}...[/dim]")
+                self.console.print(
+                    f"[dim]Executing {tool_name} tool with args {arguments}...[/dim]"
+                )
                 try:
                     tool_result = self._execute_mcp_tool(
                         server_name, tool_name, arguments
                     )
                     logger.debug(f"Tool result: {tool_result}")
-                    
+
                     # Send tool result back to Gemini for final response
                     follow_up = f"The {tool_name} tool returned: {tool_result}\n\nPlease provide a natural response to the user based on this result."
 
@@ -1192,9 +1393,13 @@ class GeminiChatbot:
 
                     # Display final response
                     self.display_response(final_response)
+
+                    # Check if the final response contains another tool call (sequential tool execution)
+                    self._handle_sequential_tool_calls(final_response)
                 except Exception as e:
                     logger.error(f"Error executing tool {tool_name}: {e}")
                     import traceback
+
                     traceback.print_exc()
                     self.console.print(f"[red]Error executing tool: {e}[/red]")
             else:
@@ -1212,7 +1417,7 @@ class GeminiChatbot:
 
         while True:
             try:
-                # Get user input 
+                # Get user input
                 if use_simple_input:
                     # Fallback to simple input
                     self.console.print("[green]You>[/green] ", end="")
@@ -1246,20 +1451,28 @@ class GeminiChatbot:
                 # Handle terminal/prompt_toolkit errors
                 if e.errno == 22:  # EINVAL - Invalid argument
                     if not use_simple_input:
-                        self.console.print(f"\n[yellow]Terminal error detected. Switching to simple input mode.[/yellow]")
-                        self.console.print("[dim]Note: Command history and auto-suggestions will be disabled.[/dim]\n")
+                        self.console.print(
+                            f"\n[yellow]Terminal error detected. Switching to simple input mode.[/yellow]"
+                        )
+                        self.console.print(
+                            "[dim]Note: Command history and auto-suggestions will be disabled.[/dim]\n"
+                        )
                         use_simple_input = True
                         continue
                     else:
-                        self.console.print(f"\n[bold red]Terminal error persists. Unable to continue.[/bold red]")
+                        self.console.print(
+                            f"\n[bold red]Terminal error persists. Unable to continue.[/bold red]"
+                        )
                         break
                 else:
                     self.console.print(f"\n[bold red]OS Error: {e}[/bold red]")
                     import traceback
+
                     traceback.print_exc()
             except Exception as e:
                 self.console.print(f"\n[bold red]Error: {e}[/bold red]")
                 import traceback
+
                 traceback.print_exc()
 
         # Cleanup before exit

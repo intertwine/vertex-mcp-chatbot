@@ -24,6 +24,8 @@ sys.path.append(
 from oauth_auth_server import OAuthAuthServer
 from oauth_protected_server import OAuthProtectedMCPServer
 
+# Suppress runtime warnings about unawaited coroutines in this test module
+pytestmark = pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
 
 class TestOAuthAuthServer:
     """Test the OAuth Authorization Server."""

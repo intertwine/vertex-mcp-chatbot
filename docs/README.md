@@ -12,6 +12,7 @@ Welcome to the documentation for the Gemini chatbot with MCP (Model Context Prot
 - 📚 **[MCP User Guide](mcp-guide.md)** - Comprehensive guide to using MCP features
 - ⚙️ **[MCP Configuration Reference](mcp-config-reference.md)** - Complete configuration options
 - 🔧 **[MCP API Documentation](mcp-api.md)** - Technical API reference for developers
+- 🔐 **[MCP OAuth Guide](mcp-oauth-guide.md)** - OAuth 2.0 authentication for MCP servers
 - 🔍 **[MCP Troubleshooting](mcp-troubleshooting.md)** - Solutions to common problems
 
 ### Examples

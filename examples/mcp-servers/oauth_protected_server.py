@@ -264,6 +264,40 @@ class OAuthProtectedMCPServer:
                 return json.dumps({"error": "Note not found", "note_id": note_id})
 
 
+def run_with_graceful_shutdown(server: OAuthProtectedMCPServer):
+    """Run the server with graceful shutdown handling."""
+    import threading
+    shutdown_event = threading.Event()
+    
+    def signal_handler(signum, _):
+        """Handle shutdown signals gracefully."""
+        signal_name = ("SIGINT" if signum == signal.SIGINT 
+                      else f"Signal {signum}")
+        print(f"\n{signal_name} received. Shutting down OAuth Protected "
+              f"MCP Server gracefully...", file=sys.stderr)
+        shutdown_event.set()
+        # Force exit after a brief moment
+        threading.Timer(0.1, lambda: os._exit(0)).start()
+    
+    # Set up signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
+    if hasattr(signal, 'SIGTERM'):
+        signal.signal(signal.SIGTERM, signal_handler)
+    
+    try:
+        # Run the server
+        server.mcp.run()
+    except KeyboardInterrupt:
+        # This should be caught by signal handler, but just in case
+        print("\nKeyboard interrupt received. Shutting down OAuth Protected "
+              "MCP Server gracefully...", file=sys.stderr)
+        os._exit(0)
+    except Exception as e:
+        print(f"\nUnexpected error: {e}", file=sys.stderr)
+        print("Shutting down OAuth Protected MCP Server...", file=sys.stderr)
+        os._exit(1)
+
+
 def main():
     """Run the OAuth protected MCP server."""
     parser = argparse.ArgumentParser(description="OAuth Protected MCP Server")
@@ -302,12 +336,12 @@ def main():
         )
         logger.info("Falling back to stdio transport...")
 
-        # Fall back to stdio
-        server.mcp.run()
+        # Fall back to stdio - run with graceful shutdown
+        run_with_graceful_shutdown(server)
     else:
-        # Run stdio server
+        # Run stdio server with graceful shutdown
         logger.info("Running with stdio transport")
-        server.mcp.run()
+        run_with_graceful_shutdown(server)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,8 @@ from tests.mock_mcp_types import (
 )
 from tests.test_async_utils import create_async_run_mock
 
+# Suppress runtime warnings about unawaited coroutines in this test module
+pytestmark = pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
 
 @pytest.fixture
 def mock_config():
