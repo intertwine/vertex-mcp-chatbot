@@ -30,6 +30,24 @@
         "FILE_SERVER_BASE_PATH": "./examples"
       },
       "priority": 2
+    },
+    {
+      "name": "oauth-protected",
+      "transport": "stdio",
+      "command": ["uv", "run", "python", "examples/mcp-servers/oauth_protected_server.py", "--auth-server", "http://localhost:9000"],
+      "auth": {
+        "type": "oauth",
+        "authorization_url": "http://localhost:9000/oauth/authorize",
+        "token_url": "http://localhost:9000/oauth/token",
+        "client_id": "mcp-test-client",
+        "client_secret": "mcp-test-secret",
+        "scope": "mcp:read mcp:write",
+        "redirect_uri": "urn:ietf:wg:oauth:2.0:oob"
+      },
+      "retry": {
+        "max_attempts": 3,
+        "initial_delay": 2.0
+      }
     }
   ]
 }

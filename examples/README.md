@@ -42,6 +42,27 @@ This server provides:
 - **Resources**: Weather data as `weather://` URIs
 - **Prompts**: `weather_report`, `travel_weather`, `weather_comparison`
 
+#### OAuth Servers (for authentication testing)
+
+The OAuth servers demonstrate how to implement OAuth 2.0 authentication with MCP:
+
+**OAuth Authorization Server**
+```bash
+# Run the authorization server (port 9000)
+uv run python examples/mcp-servers/oauth_auth_server.py --port 9000
+```
+
+**OAuth Protected MCP Server**
+```bash
+# Run the protected MCP server (requires auth server running)
+uv run python examples/mcp-servers/oauth_protected_server.py --transport stdio --auth-server http://localhost:9000
+```
+
+The OAuth servers provide:
+- **Authorization Server**: OAuth 2.0 endpoints with PKCE support, test credentials (testuser/testpass)
+- **Protected Server**: MCP server requiring OAuth tokens with tools like `get_user_profile`, `create_secure_note`
+- **Discovery**: RFC 9728 compliant discovery endpoints for OAuth integration
+
 ### 3. Configure the Chatbot
 
 Copy the example configuration to your project root:
