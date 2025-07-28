@@ -10,9 +10,8 @@ Usage:
 """
 
 import os
-import json
-import asyncio
-import argparse
+import signal
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -266,12 +265,44 @@ Requirements:
 Use the read_file tool to access the file contents."""
 
 
-if __name__ == "__main__":
-    import sys
+def run_with_graceful_shutdown():
+    """Run the server with graceful shutdown handling."""
+    import threading
+    shutdown_event = threading.Event()
     
-    # For stdio transport, just run with default settings
-    print(f"Starting File System MCP Server", file=sys.stderr)
+    def signal_handler(signum, _):
+        """Handle shutdown signals gracefully."""
+        signal_name = ("SIGINT" if signum == signal.SIGINT 
+                      else f"Signal {signum}")
+        print(f"\n{signal_name} received. Shutting down File System "
+              f"MCP Server gracefully...", file=sys.stderr)
+        shutdown_event.set()
+        # Force exit after a brief moment
+        threading.Timer(0.1, lambda: os._exit(0)).start()
+    
+    # Set up signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
+    if hasattr(signal, 'SIGTERM'):
+        signal.signal(signal.SIGTERM, signal_handler)
+    
+    try:
+        # Run the server
+        mcp.run()
+    except KeyboardInterrupt:
+        # This should be caught by signal handler, but just in case
+        print("\nKeyboard interrupt received. Shutting down File System "
+              "MCP Server gracefully...", file=sys.stderr)
+        os._exit(0)
+    except Exception as e:
+        print(f"\nUnexpected error: {e}", file=sys.stderr)
+        print("Shutting down File System MCP Server...", file=sys.stderr)
+        os._exit(1)
+
+
+if __name__ == "__main__":
+    # Simple startup message without Ctrl+C instruction
+    print("Starting File System MCP Server", file=sys.stderr)
     print(f"Base path: {BASE_PATH}", file=sys.stderr)
     
-    # FastMCP handles stdio transport automatically when run without arguments
-    mcp.run()
+    # Run with graceful shutdown handling
+    run_with_graceful_shutdown()

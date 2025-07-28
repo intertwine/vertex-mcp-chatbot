@@ -10,8 +10,8 @@ Usage:
 """
 
 import json
-import asyncio
-import argparse
+import signal
+import sys
 import os
 from datetime import datetime, timedelta
 import random
@@ -266,11 +266,43 @@ Include:
 Use the weather tools to gather data for both locations and present a clear comparison."""
 
 
+def run_with_graceful_shutdown():
+    """Run the server with graceful shutdown handling."""
+    import threading
+    shutdown_event = threading.Event()
+    
+    def signal_handler(signum, _):
+        """Handle shutdown signals gracefully."""
+        signal_name = ("SIGINT" if signum == signal.SIGINT 
+                      else f"Signal {signum}")
+        print(f"\n{signal_name} received. Shutting down Weather "
+              f"MCP Server gracefully...", file=sys.stderr)
+        shutdown_event.set()
+        # Force exit after a brief moment
+        threading.Timer(0.1, lambda: os._exit(0)).start()
+    
+    # Set up signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
+    if hasattr(signal, 'SIGTERM'):
+        signal.signal(signal.SIGTERM, signal_handler)
+    
+    try:
+        # Run the server
+        mcp.run()
+    except KeyboardInterrupt:
+        # This should be caught by signal handler, but just in case
+        print("\nKeyboard interrupt received. Shutting down Weather "
+              "MCP Server gracefully...", file=sys.stderr)
+        os._exit(0)
+    except Exception as e:
+        print(f"\nUnexpected error: {e}", file=sys.stderr)
+        print("Shutting down Weather MCP Server...", file=sys.stderr)
+        os._exit(1)
+
+
 if __name__ == "__main__":
-    import sys
+    # Simple startup message without Ctrl+C instruction
+    print("Starting Weather MCP Server", file=sys.stderr)
     
-    # For stdio transport, just run with default settings
-    print(f"Starting Weather MCP Server", file=sys.stderr)
-    
-    # FastMCP handles stdio transport automatically when run without arguments
-    mcp.run()
+    # Run with graceful shutdown handling
+    run_with_graceful_shutdown()
