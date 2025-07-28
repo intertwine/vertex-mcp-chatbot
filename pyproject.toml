@@ -47,6 +47,7 @@ vertex-mcp-chatbot = "main:main"
 Homepage = "https://github.com/intertwine/vertex-mcp-chatbot"
 Repository = "https://github.com/intertwine/vertex-mcp-chatbot"
 Issues = "https://github.com/intertwine/vertex-mcp-chatbot/issues"
+Documentation = "https://github.com/intertwine/vertex-mcp-chatbot/tree/main/docs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
