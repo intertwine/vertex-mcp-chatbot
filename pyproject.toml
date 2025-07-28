@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "expel-vertex-ai-chatbot"
+name = "vertex-mcp-chatbot"
 version = "0.1.0"
 description = "Interactive LLM chatbot powered by Google's models on Vertex AI"
 readme = "README.md"
@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 authors = [
     {name = "Bryan Young"},
 ]
-keywords = ["llm", "chatbot", "vertex-ai", "google-cloud"]
+keywords = ["llm", "chatbot", "vertex-ai", "google-cloud", "mcp"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -41,12 +41,12 @@ dev = [
 ]
 
 [project.scripts]
-    expel-vertex-ai-chatbot = "main:main"
+vertex-mcp-chatbot = "main:main"
 
 [project.urls]
-Homepage = "https://github.com/bryanyoung/expel-vertex-ai-chatbot"
-Repository = "https://github.com/bryanyoung/expel-vertex-ai-chatbot"
-Issues = "https://github.com/bryanyoung/expel-vertex-ai-chatbot/issues"
+Homepage = "https://github.com/intertwine/vertex-mcp-chatbot"
+Repository = "https://github.com/intertwine/vertex-mcp-chatbot"
+Issues = "https://github.com/intertwine/vertex-mcp-chatbot/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]

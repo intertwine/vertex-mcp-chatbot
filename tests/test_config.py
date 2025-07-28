@@ -11,8 +11,8 @@ class TestConfig:
 
     def test_default_values(self):
         """Test that default configuration values are set correctly."""
-        assert Config.PROJECT_ID == "expel-engineering-prod"
-        assert Config.LOCATION == "us-central1"
+        assert Config.PROJECT_ID == "your-gcp-project-id"
+        assert Config.LOCATION == "your-gcp-location"
         assert Config.DEFAULT_MODEL == "gemini-2.5-flash"
         assert Config.MAX_HISTORY_LENGTH == 10
 

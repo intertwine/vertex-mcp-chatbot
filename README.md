@@ -1,6 +1,6 @@
-# Expel Vertex AI Chatbot
+# Vertex MCP Chatbot
 
-An interactive command-line chatbot powered by Google's Gemini LLM via Vertex AI. This application provides a rich terminal interface for conversing with Gemini models, complete with markdown rendering, conversation history, and various utility commands.
+An interactive command-line chatbot powered by Google's Gemini LLM via Vertex AI. This application provides a rich terminal interface for conversing with Gemini models, complete with markdown rendering, conversation history, various utility commands, and Model Context Protocol (MCP) support.
 
 ## Features
 
@@ -11,16 +11,20 @@ An interactive command-line chatbot powered by Google's Gemini LLM via Vertex AI
 - 🎨 **Rich Terminal UI**: Colorful, well-formatted output using Rich library
 - 🔧 **Multiple Models**: Support for different Gemini models (flash, pro)
 - 📋 **Command System**: Built-in commands for managing your chat session
-- 🔌 **MCP Tool Integration**: When MCP servers are connected, their tools are automatically available to Gemini during conversations
+- 🔌 **MCP Integration**: Full Model Context Protocol support for extending Gemini's capabilities
 
-> **Note**: Model Context Protocol (MCP) integration is fully implemented! Features include:
-> - ✅ Tool execution during conversations
-> - ✅ Resource reading and embedding
-> - ✅ Prompt template usage
-> - ✅ HTTP/SSE transport (in addition to stdio)
-> - ✅ Multi-server coordination with priority-based conflict resolution
-> - ✅ OAuth 2.0 authentication support
-> - ✅ Connection retry with exponential backoff
+### MCP Features
+
+The chatbot includes comprehensive MCP (Model Context Protocol) support:
+
+- ✅ **Tool Execution**: Gemini automatically uses MCP tools during conversations
+- ✅ **Resource Access**: Read files, APIs, and other resources via URIs
+- ✅ **Prompt Templates**: Use pre-defined templates for common tasks
+- ✅ **Multiple Transports**: stdio, HTTP, and SSE protocols supported
+- ✅ **Multi-Server Support**: Connect to multiple MCP servers simultaneously
+- ✅ **Authentication**: OAuth 2.0, Basic Auth, and custom headers
+- ✅ **Reliability**: Automatic retry with exponential backoff
+- ✅ **Priority System**: Smart conflict resolution when servers offer similar tools
 
 ## Prerequisites
 
@@ -33,8 +37,8 @@ An interactive command-line chatbot powered by Google's Gemini LLM via Vertex AI
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/expel-io/vertex-ai-chatbot.git
-cd vertex-ai-chatbot
+git clone https://github.com/intertwine/vertex-mcp-chatbot.git
+cd vertex-mcp-chatbot
 ```
 
 2. Install dependencies with uv (creates virtual environment automatically):
@@ -60,8 +64,8 @@ cp .env.example .env
 
 You can optionally edit `.env` to override default project settings:
 ```bash
-# GOOGLE_CLOUD_PROJECT='expel-engineering-prod'
-# GOOGLE_CLOUD_LOCATION='us-central1'
+# GOOGLE_CLOUD_PROJECT='your-gcp-project-id'
+# GOOGLE_CLOUD_LOCATION='us-east1'
 ```
 
 ## Usage
@@ -201,6 +205,104 @@ You> /quit
 👋 Goodbye!
 ```
 
+## MCP Configuration
+
+### Basic Configuration
+
+Create an `mcp_config.json` file in the project root:
+
+```json
+{
+  "servers": [
+    {
+      "name": "filesystem",
+      "transport": "stdio",
+      "command": ["python", "examples/mcp-servers/filesystem_server.py"]
+    },
+    {
+      "name": "weather-api",
+      "transport": "http",
+      "url": "http://localhost:8080/mcp",
+      "auth": {
+        "type": "basic",
+        "username": "user",
+        "password": "pass"
+      }
+    }
+  ]
+}
+```
+
+### Advanced Configuration Options
+
+#### OAuth 2.0 Authentication
+
+```json
+{
+  "name": "github-api",
+  "transport": "http",
+  "url": "https://api.github.com/mcp",
+  "auth": {
+    "type": "oauth",
+    "authorization_url": "https://github.com/login/oauth/authorize",
+    "token_url": "https://github.com/login/oauth/access_token",
+    "client_id": "your-client-id",
+    "client_secret": "your-client-secret",
+    "scope": "repo read:user",
+    "redirect_uri": "http://localhost:8080/callback"
+  }
+}
+```
+
+#### Connection Retry Configuration
+
+```json
+{
+  "name": "flaky-server",
+  "transport": "stdio",
+  "command": ["node", "server.js"],
+  "retry": {
+    "max_attempts": 5,
+    "initial_delay": 1.0,
+    "max_delay": 30.0,
+    "exponential_base": 2.0,
+    "jitter": true
+  }
+}
+```
+
+#### Server Priority
+
+When multiple servers offer similar tools, use priority to control which server is preferred:
+
+```json
+{
+  "servers": [
+    {
+      "name": "primary-calc",
+      "transport": "stdio",
+      "command": ["python", "calc_server.py"],
+      "priority": 1
+    },
+    {
+      "name": "backup-calc",
+      "transport": "http",
+      "url": "http://backup.example.com/mcp",
+      "priority": 2
+    }
+  ]
+}
+```
+
+### Example MCP Servers
+
+The project includes example MCP servers in `examples/mcp-servers/`:
+
+- **filesystem_server.py**: File operations (list, read, write)
+- **weather_server.py**: Weather data and forecasts
+
+See [examples/README.md](examples/README.md) for detailed setup instructions.
+
 ## Project Structure
 
 ```
@@ -242,8 +344,8 @@ vertex-ai-chatbot/
 
 The application uses the following configuration (can be modified in `src/config.py`):
 
-- **Project ID**: `expel-engineering-prod`
-- **Location**: `us-central1`
+- **Project ID**: `your-gcp-project-id` # MAKE SURE YOU CHANGE THIS IN .env!
+- **Location**: `us-east1`
 - **Default Model**: `gemini-2.5-flash`
 - **Max History Length**: 10 conversation turns
 
@@ -337,6 +439,16 @@ The test suite covers:
 - **Multiple test runners** - Standard pytest and custom runner with options
 - **CI/CD ready** - Configured for automated testing pipelines
 
+## Documentation
+
+- 📚 **[Documentation Index](docs/README.md)** - Complete documentation overview
+- 📖 **[MCP User Guide](docs/mcp-guide.md)** - Comprehensive guide to using MCP features
+- ⚙️ **[MCP Configuration Reference](docs/mcp-config-reference.md)** - Detailed configuration options
+- 🔧 **[MCP API Reference](docs/mcp-api.md)** - Technical API documentation
+- 🔍 **[MCP Troubleshooting](docs/mcp-troubleshooting.md)** - Solutions to common problems
+- 🚀 **[Example MCP Servers](examples/README.md)** - Ready-to-use example servers
+- 🏗️ **[Implementation Details](plans/implement-mcp-client.md)** - Technical implementation notes
+
 ## Development
 
 To extend or modify the chatbot:
@@ -389,4 +501,4 @@ When adding new functionality:
 
 ## License
 
-This project is for internal Expel use. Please follow company guidelines for code usage and distribution.
+MIT License. See [LICENSE](LICENSE) for details.

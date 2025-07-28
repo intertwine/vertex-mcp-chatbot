@@ -191,7 +191,7 @@ wheels = [
 ]
 
 [[package]]
-name = "expel-vertex-ai-chatbot"
+name = "vertex-mcp-chatbot"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

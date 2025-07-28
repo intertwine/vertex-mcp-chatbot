@@ -457,6 +457,17 @@ python mcp_server.py --verbose
 
 ## Advanced Topics
 
+### Architecture Notes
+
+The MCP implementation uses a simplified on-demand session architecture:
+
+1. **No Persistent Sessions**: MCP sessions are created when needed and closed after use
+2. **Stateless Operations**: Each tool call, resource read, or prompt execution is independent
+3. **Automatic Cleanup**: Resources are properly released after each operation
+4. **Thread Safety**: Safe for concurrent operations
+
+This design ensures reliability and prevents resource leaks while maintaining full MCP functionality.
+
 ### Multi-Server Coordination
 
 When multiple servers provide the same tools, the chatbot automatically handles:
@@ -464,6 +475,7 @@ When multiple servers provide the same tools, the chatbot automatically handles:
 - **Conflict Resolution**: Uses server priority to select which server to use
 - **Failover**: Falls back to lower priority servers if higher priority fails
 - **Load Distribution**: Can distribute requests across servers
+- **Tool Discovery**: The `/mcp tools` command shows which server provides each tool
 
 ### Custom Headers and Authentication
 
@@ -492,12 +504,25 @@ Use environment variables in configuration:
 }
 ```
 
+### Resource Templates
+
+Some resources accept parameters (resource templates). These are discovered with `/mcp resources` and can be used with specific arguments:
+
+```
+You: Show me the logs for yesterday using file:///logs/2024-01-27
+Assistant: I'll read the log file for that date.
+
+[Reading resource: file:///logs/2024-01-27]
+[Log content displayed...]
+```
+
 ### Performance Optimization
 
 1. **Connection Pooling**: HTTP transport reuses connections
 2. **Parallel Discovery**: Tool/resource discovery happens in parallel
 3. **Caching**: Server capabilities cached during session
 4. **Retry Strategy**: Configure retry for optimal performance
+5. **On-Demand Sessions**: MCP sessions created only when needed
 
 ### Security Best Practices
 
@@ -506,6 +531,14 @@ Use environment variables in configuration:
 3. **Limit server access**: Only connect to trusted MCP servers
 4. **Review permissions**: Understand what each server can access
 5. **Token storage**: OAuth tokens stored in `.mcp_tokens/` with restricted permissions
+
+## Related Documentation
+
+- 📚 **[Documentation Index](README.md)** - Overview of all documentation
+- ⚙️ **[Configuration Reference](mcp-config-reference.md)** - Detailed configuration options
+- 🔧 **[API Documentation](mcp-api.md)** - Technical API reference
+- 🔍 **[Troubleshooting Guide](mcp-troubleshooting.md)** - Solutions to common problems
+- 🚀 **[Example Servers](../examples/README.md)** - Working example implementations
 
 ## Next Steps
 

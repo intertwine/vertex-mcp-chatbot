@@ -11,8 +11,8 @@ class Config:
     """Configuration settings for the Gemini chatbot."""
 
     # GCP Settings
-    PROJECT_ID = "expel-engineering-prod"
-    LOCATION = "us-central1"
+    PROJECT_ID = "your-gcp-project-id"
+    LOCATION = "your-gcp-location"
 
     # Model Settings
     DEFAULT_MODEL = (

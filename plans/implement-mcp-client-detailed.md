@@ -29,8 +29,8 @@ This plan outlines detailed steps to modify the chatbot to enable it to act as a
 **Core Components:**
 - `main.py` - Entry point with CLI argument parsing (--model flag)
 - `src/config.py` - Configuration management with environment variable support
-  - Default project: expel-engineering-prod
-  - Default location: us-central1
+  - Default project: your-gcp-project-id # MAKE SURE YOU CHANGE THIS IN .env!
+  - Default location: your-gcp-location # MAKE SURE YOU CHANGE THIS IN .env!
   - Default model: gemini-2.5-flash
   - Max history length: 10 conversation turns
 - `src/gemini_client.py` - Gemini/Vertex AI client wrapper
