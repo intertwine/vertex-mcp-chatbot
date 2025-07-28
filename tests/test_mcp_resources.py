@@ -71,6 +71,7 @@ class TestMCPResources:
             return_value=[{"name": "test-server", "connected": True}]
         )
         chatbot.mcp_manager.get_resources_sync = Mock(return_value=[])
+        chatbot.mcp_manager.get_resource_templates_sync = Mock(return_value=[])
 
         result = chatbot.process_command("/mcp resources")
 

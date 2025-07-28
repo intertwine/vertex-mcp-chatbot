@@ -47,6 +47,11 @@ class GeminiClient:
         self.chat_session = self.client.chats.create(
             model=self.model_name, config=config
         )
+        
+        # Store system instruction for comparison
+        if system_instruction:
+            self.chat_session._system_instruction = system_instruction
+        
         return self.chat_session
 
     def send_message(
@@ -62,8 +67,19 @@ class GeminiClient:
         Returns:
             The response text from the model.
         """
-        if not self.chat_session:
+        # If system instruction changed, start a new chat session
+        if system_instruction and self.chat_session:
+            # Check if system instruction has changed
+            current_instruction = getattr(self.chat_session, '_system_instruction', None)
+            if current_instruction != system_instruction:
+                # Start new session with updated instruction
+                self.start_chat(system_instruction)
+                # Store for future comparison
+                self.chat_session._system_instruction = system_instruction
+        elif not self.chat_session:
             self.start_chat(system_instruction)
+            if system_instruction and self.chat_session:
+                self.chat_session._system_instruction = system_instruction
 
         try:
             response = self.chat_session.send_message(message)

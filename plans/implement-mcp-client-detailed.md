@@ -781,8 +781,38 @@ All four increments of Phase 3 (Advanced Features) are now complete:
 - **Configuration Reference**: Complete schema for all server types
 - **Troubleshooting Section**: Common issues and solutions
 
+#### 2025-01-28 - Phase 4 Increment 2: Example MCP Servers
+**Completed:**
+- ✅ Created `examples/mcp-servers/` directory with two example servers:
+  - **filesystem_server.py**: File system operations server (stdio transport)
+    - Tools: `list_files`, `read_file`, `write_file`, `create_directory`
+    - Resources: Exposes files via `file:///` URIs
+    - Prompts: `analyze_directory`, `summarize_file`
+    - Security: Path validation to prevent directory traversal
+  - **weather_server.py**: Weather information server (stdio transport)
+    - Tools: `get_weather`, `get_forecast`, `get_alerts`
+    - Resources: Weather data via `weather://` URIs
+    - Prompts: `weather_report`, `travel_weather`, `weather_comparison`
+    - Mock data for demonstration purposes
+- ✅ Created `examples/mcp_config.json` with configuration for both servers
+- ✅ Created `examples/README.md` with comprehensive quick start guide:
+  - Installation instructions
+  - How to run each server
+  - Example conversations demonstrating features
+  - Troubleshooting guide
+  - Building your own servers section
+- ✅ Used FastMCP framework for simpler implementation
+- ✅ Verified servers start without errors
+
+**Technical Decisions:**
+- **FastMCP Framework**: Used the modern FastMCP decorators for cleaner code
+- **Stdio Transport**: Focused on stdio for simplicity (SSE/HTTP for future)
+- **Mock Data**: Weather server uses mock data to avoid external dependencies
+- **Security First**: Filesystem server validates all paths for security
+- **Rich Examples**: Included tools, resources, and prompts in each server
+
 **Next Steps:**
-- Create example MCP servers for testing and learning
+- Create tests for the example servers
 - Add performance optimization features
 - Create MCP development guide for building custom servers
 

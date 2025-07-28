@@ -46,10 +46,38 @@ Modify the Gemini chatbot to act as an MCP (Model Context Protocol) client, enab
   - Clear retry attempt logging
   - 187 tests passing
 
-### Phase 4: Polish and Documentation (TODO)
-- Comprehensive user documentation
-- Example MCP servers
-- Performance optimization
+### Phase 4: Polish and Documentation ✅ MOSTLY COMPLETE
+- **Increment 1**: Example MCP Servers ✅ COMPLETE
+  - Created examples/mcp-servers/ directory
+  - Implemented filesystem server (stdio) using FastMCP
+  - Implemented weather server (stdio) using FastMCP
+  - Created example mcp_config.json
+  - Added examples README with quickstart guide
+- **Increment 2**: Critical Bug Fixes and Improvements ✅ COMPLETE
+  - Fixed MCP tool detection for Gemini's "MCP Tool Call: tool_name(args)" format
+  - Fixed Pydantic object handling (CallToolResult, resources, prompts)
+  - Simplified MCP manager to use on-demand sessions (avoiding async context issues)
+  - Fixed terminal compatibility issues (errno 22 with prompt_toolkit)
+  - Added session management when MCP servers connect/disconnect
+  - Fixed multi-server tool handling and system instruction updates
+  - Fixed resource listing (static resources vs resource templates)
+  - Fixed prompt result handling for Pydantic GetPromptResult objects
+- **Increment 3**: Test Updates ✅ COMPLETE (189/189 tests passing)
+  - ✅ Updated all MCP manager tests for simplified architecture
+  - ✅ Updated all HTTP transport tests for new patterns
+  - ✅ Fixed multi-server coordination tests
+  - ✅ Updated tests to handle Pydantic objects instead of dicts
+  - ✅ Fixed async/sync compatibility issues in tests
+  - ✅ Fixed OAuth authentication tests
+  - ✅ Fixed retry logic tests
+  - ✅ Fixed resource handling tests
+  - ✅ Fixed coroutine warning issues with proper mocking
+  - ✅ Created test utilities for async handling (test_async_utils.py)
+  - ✅ Added simplified OAuth tests (test_mcp_oauth_simplified.py)
+- **Increment 4**: Documentation Updates (TODO)
+  - Update user documentation with examples
+  - Update API documentation
+  - Update README with current features
 
 ## Key Architecture Decisions
 1. **AsyncExitStack Pattern**: Following official SDK for connection lifecycle
@@ -57,6 +85,10 @@ Modify the Gemini chatbot to act as an MCP (Model Context Protocol) client, enab
 3. **Natural Language Integration**: No special syntax for tool calls
 4. **Sync/Async Bridge**: Using asyncio.run() for sync wrapper methods
 5. **Transport Abstraction**: Unified interface for stdio/HTTP/SSE
+6. **On-Demand Sessions**: Create MCP sessions per operation (simplified from persistent)
+7. **Pydantic Object Handling**: MCP SDK returns Pydantic objects, not dicts
+8. **Resource Templates**: Parameterized resources use list_resource_templates()
+9. **Session Refresh**: Clear Gemini chat when MCP servers change
 
 ## Current Status (2025-01-28)
 - ✅ Phase 1: Core infrastructure complete
@@ -66,16 +98,29 @@ Modify the Gemini chatbot to act as an MCP (Model Context Protocol) client, enab
   - Multi-server coordination with priorities
   - OAuth 2.0 authentication
   - Connection retry with exponential backoff
-- All 187 tests passing
+- ✅ Phase 4 Increment 1 & 2: Example servers and critical fixes complete
+  - FastMCP-based example servers working
+  - All major MCP features (tools, resources, prompts) functional
+  - Gemini integration fully operational
+- ✅ Phase 4 Increment 3: Test updates COMPLETE (189/189 tests passing)
+  - Major test suite refactoring for simplified architecture complete
+  - All tests updated for Pydantic object handling
+  - Async/sync compatibility issues resolved
+  - Event loop isolation fixed to prevent test conflicts
+  - Coroutine warning issues resolved with proper mocking patterns
+  - Test utilities created for consistent async handling
 
 ## Next Steps
-1. Phase 4: Polish and documentation
-2. Create example MCP servers for testing
-3. Comprehensive user guide with tutorials
-4. Performance optimization and caching
+2. **Phase 4 Increment 4**: Documentation updates
+   - Update user documentation with working examples
+   - Update API documentation
+   - Update README with current features
+3. Performance optimization and caching (future)
+4. Additional example servers (future)
 
 ## Important Notes
 - Uses MCP Python SDK (requires Python 3.10+)
 - Project uses `uv` package manager, not pip
 - All phases follow TDD approach: tests first, then implementation
 - Documentation updates required after each increment
+- Test event loop isolation: Tests that mock `asyncio.run()` create new event loops to avoid conflicts

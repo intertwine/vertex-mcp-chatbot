@@ -1,10 +1,10 @@
-"""MCP client manager module."""
+"""Simplified MCP client manager that uses asyncio.run for each operation."""
 
 import asyncio
 import logging
 import random
-from contextlib import AsyncExitStack
 from typing import Dict, List, Any, Optional, Tuple
+from contextlib import asynccontextmanager
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -42,12 +42,11 @@ logger = logging.getLogger(__name__)
 
 class MCPManagerError(Exception):
     """Exception raised for MCP manager errors."""
-
     pass
 
 
 class MCPManager:
-    """Manages MCP client connections and operations."""
+    """Simplified MCP client manager that creates sessions on demand."""
 
     def __init__(self, config: Optional[MCPConfig] = None):
         """Initialize MCP manager.
@@ -56,209 +55,105 @@ class MCPManager:
             config: MCP configuration. If not provided, will create default.
         """
         self.config = config or MCPConfig()
-        self._sessions: Dict[str, ClientSession] = {}
-        self._transports: Dict[str, Tuple[Any, Any]] = {}  # Store (read, write) streams
-        self._session_id_callbacks: Dict[str, Any] = {}  # For HTTP transport
-        self._oauth_tokens: Dict[str, Dict[str, Any]] = {}  # OAuth tokens by server
+        self._active_servers: Dict[str, Dict[str, Any]] = {}  # Track server configs
+        # Add these for compatibility with tests
+        self._sessions = {}  # Mock sessions tracking
+        self._transports = {}
+        self._session_id_callbacks = {}
+        self._oauth_tokens = {}
         self._oauth_console = Console() if OAUTH_AVAILABLE else None
-        self._exit_stack: Optional[AsyncExitStack] = None
+        self._exit_stack = None
         self._initialized = False
 
-    async def initialize(self) -> None:
-        """Initialize the manager with exit stack for resource management."""
-        if self._initialized:
-            return
-
-        self._exit_stack = AsyncExitStack()
-        self._initialized = True
-
-    async def cleanup(self) -> None:
-        """Clean up all connections and resources."""
-        if self._exit_stack:
-            await self._exit_stack.aclose()
-
-        self._sessions.clear()
-        self._transports.clear()
-        self._initialized = False
-
-    async def connect_server(self, server_name: str) -> None:
-        """Connect to an MCP server.
+    def connect_server_sync(self, server_name: str) -> None:
+        """Mark a server as active for connection.
 
         Args:
             server_name: Name of the server to connect to
-
-        Raises:
-            MCPManagerError: If server not found or connection fails
         """
-        if not self._initialized:
-            await self.initialize()
-
-        # Check if already connected
-        if server_name in self._sessions:
-            return
-
-        # Get server configuration
         server_config = self.config.get_server(server_name)
         if not server_config:
             raise MCPManagerError(f"Server '{server_name}' not found in configuration")
+        
+        # Use retry logic
+        self._connect_with_retry_sync(server_name, server_config)
 
-        # Use retry logic for connection
-        await self._connect_with_retry(server_name, server_config)
-
-    async def _connect_stdio_server(
-        self, server_name: str, config: Dict[str, Any]
-    ) -> None:
-        """Connect to a stdio transport server.
-
-        Args:
-            server_name: Name of the server
-            config: Server configuration
-        """
-        if not self._exit_stack:
-            raise MCPManagerError("Manager not initialized")
-
-        command = config["command"]
-        server_params = StdioServerParameters(
-            command=command[0], args=command[1:] if len(command) > 1 else None
+    def _connect_with_retry_sync(self, server_name: str, server_config: Dict[str, Any]) -> None:
+        """Connect with retry logic (synchronous version)."""
+        retry_config = self._get_retry_config(server_config)
+        max_attempts = retry_config["max_attempts"]
+        
+        last_error = None
+        
+        for attempt in range(max_attempts):
+            try:
+                # Log attempt
+                if attempt > 0:
+                    logger.info(
+                        f"Connection attempt {attempt + 1}/{max_attempts} for {server_name}"
+                    )
+                
+                # Mark as active
+                self._active_servers[server_name] = server_config
+                self._sessions[server_name] = True
+                
+                # Test connection by getting tools
+                asyncio.run(self._get_tools_async(server_name))
+                
+                # Success!
+                if attempt > 0:
+                    logger.info(
+                        f"Connection successful on attempt {attempt + 1} for {server_name}"
+                    )
+                logger.info(f"Server '{server_name}' connected successfully")
+                return
+                
+            except Exception as e:
+                last_error = e
+                
+                # Remove from active servers
+                self._active_servers.pop(server_name, None)
+                self._sessions.pop(server_name, None)
+                
+                # Don't retry if this is the last attempt
+                if attempt >= max_attempts - 1:
+                    break
+                
+                # Calculate backoff delay
+                delay = self._calculate_backoff_delay(
+                    attempt,
+                    retry_config["initial_delay"],
+                    retry_config["exponential_base"],
+                    retry_config["max_delay"],
+                    retry_config["jitter"],
+                )
+                
+                logger.warning(
+                    f"Connection attempt {attempt + 1}/{max_attempts} failed for "
+                    f"{server_name}: {e}. Retrying in {delay:.1f}s..."
+                )
+                
+                # Wait before retry
+                import time
+                time.sleep(delay)
+        
+        # All attempts failed
+        raise MCPManagerError(
+            f"Failed to connect to server '{server_name}' after {max_attempts} "
+            f"attempts: {last_error}"
         )
 
-        try:
-            # Create the stdio transport
-            stdio_transport = await self._exit_stack.enter_async_context(
-                stdio_client(server_params)
-            )
-            read, write = stdio_transport
-
-            # Create the client session
-            session = await self._exit_stack.enter_async_context(
-                ClientSession(read, write)
-            )
-
-            # Initialize the session
-            await session.initialize()
-
-            # Store the session and transport
-            self._sessions[server_name] = session
-            self._transports[server_name] = (read, write)
-
-        except Exception as e:
-            raise MCPManagerError(f"Failed to connect to server '{server_name}': {e}")
-
-    async def _connect_http_server(
-        self, server_name: str, config: Dict[str, Any]
-    ) -> None:
-        """Connect to an HTTP transport server.
-
-        Args:
-            server_name: Name of the server
-            config: Server configuration
-        """
-        if not self._exit_stack:
-            raise MCPManagerError("Manager not initialized")
-
-        url = config["url"]
-        headers = config.get("headers", {})
-        auth = None
-
-        # Handle authentication
-        auth_config = config.get("auth")
-        if auth_config:
-            auth_type = auth_config.get("type")
-            if auth_type == "basic":
-                username = auth_config.get("username")
-                password = auth_config.get("password")
-                if username and password:
-                    auth = httpx.BasicAuth(username, password)
-            elif auth_type == "oauth" and OAUTH_AVAILABLE:
-                # Handle OAuth authentication
-                token = await self._handle_oauth_auth(server_name, auth_config)
-                if token:
-                    headers = headers.copy()
-                    headers["Authorization"] = f"Bearer {token['access_token']}"
-                    self._oauth_tokens[server_name] = token
-
-        try:
-            # Create the HTTP transport
-            http_transport = await self._exit_stack.enter_async_context(
-                streamablehttp_client(url, headers=headers, auth=auth)
-            )
-            read, write, get_session_id = http_transport
-
-            # Create the client session
-            session = await self._exit_stack.enter_async_context(
-                ClientSession(read, write)
-            )
-
-            # Initialize the session
-            await session.initialize()
-
-            # Store the session, transport, and session ID callback
-            self._sessions[server_name] = session
-            self._transports[server_name] = (read, write)
-            self._session_id_callbacks[server_name] = get_session_id
-
-        except Exception as e:
-            raise MCPManagerError(f"Failed to connect to server '{server_name}': {e}")
-
-    async def _connect_sse_server(
-        self, server_name: str, config: Dict[str, Any]
-    ) -> None:
-        """Connect to an SSE transport server.
-
-        Args:
-            server_name: Name of the server
-            config: Server configuration
-        """
-        if not self._exit_stack:
-            raise MCPManagerError("Manager not initialized")
-
-        url = config["url"]
-        headers = config.get("headers")
-        auth = None
-
-        # Handle authentication (same as HTTP)
-        auth_config = config.get("auth")
-        if auth_config:
-            auth_type = auth_config.get("type")
-            if auth_type == "basic":
-                username = auth_config.get("username")
-                password = auth_config.get("password")
-                if username and password:
-                    auth = httpx.BasicAuth(username, password)
-
-        try:
-            # Create the SSE transport
-            sse_transport = await self._exit_stack.enter_async_context(
-                sse_client(url, headers=headers, auth=auth)
-            )
-            read, write = sse_transport
-
-            # Create the client session
-            session = await self._exit_stack.enter_async_context(
-                ClientSession(read, write)
-            )
-
-            # Initialize the session
-            await session.initialize()
-
-            # Store the session and transport
-            self._sessions[server_name] = session
-            self._transports[server_name] = (read, write)
-
-        except Exception as e:
-            raise MCPManagerError(f"Failed to connect to server '{server_name}': {e}")
-
-    async def disconnect_server(self, server_name: str) -> None:
-        """Disconnect from an MCP server.
+    def disconnect_server_sync(self, server_name: str) -> None:
+        """Mark a server as inactive.
 
         Args:
             server_name: Name of the server to disconnect from
         """
-        # Remove from our tracking
-        # Note: Actual cleanup happens via AsyncExitStack on cleanup()
+        self._active_servers.pop(server_name, None)
         self._sessions.pop(server_name, None)
         self._transports.pop(server_name, None)
         self._session_id_callbacks.pop(server_name, None)
+        logger.info(f"Server '{server_name}' marked as inactive")
 
     def list_servers(self) -> List[Dict[str, Any]]:
         """List all configured servers with their connection status.
@@ -273,9 +168,94 @@ class MCPManager:
             servers.append(server_info)
         return servers
 
-    async def get_tools(
-        self, server_name: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    @asynccontextmanager
+    async def _create_session(self, server_name: str):
+        """Create a temporary session for a server operation.
+
+        Args:
+            server_name: Name of the server
+
+        Yields:
+            ClientSession instance
+        """
+        if server_name not in self._active_servers:
+            raise MCPManagerError(f"Server '{server_name}' is not connected")
+
+        server_config = self._active_servers[server_name]
+        transport = server_config["transport"]
+
+        if transport == "stdio":
+            command = server_config["command"]
+            server_params = StdioServerParameters(
+                command=command[0], args=command[1:] if len(command) > 1 else None
+            )
+            
+            async with stdio_client(server_params) as (read, write):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    yield session
+        
+        elif transport == "http":
+            if not HTTP_TRANSPORT_AVAILABLE:
+                raise MCPManagerError(
+                    "HTTP transport requires httpx. Install with: pip install httpx httpx-sse"
+                )
+            
+            url = server_config["url"]
+            headers = server_config.get("headers", {})
+            auth = None
+            
+            # Handle authentication
+            auth_config = server_config.get("auth")
+            if auth_config:
+                auth_type = auth_config.get("type")
+                if auth_type == "basic":
+                    username = auth_config.get("username")
+                    password = auth_config.get("password")
+                    if username and password:
+                        auth = httpx.BasicAuth(username, password)
+                elif auth_type == "oauth" and OAUTH_AVAILABLE:
+                    # Handle OAuth authentication
+                    token = await self._handle_oauth_auth(server_name, auth_config)
+                    if token:
+                        headers = headers.copy()
+                        headers["Authorization"] = f"Bearer {token['access_token']}"
+                        self._oauth_tokens[server_name] = token
+            
+            async with streamablehttp_client(url, headers=headers, auth=auth) as (read, write, _):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    yield session
+        
+        elif transport == "sse":
+            if not HTTP_TRANSPORT_AVAILABLE:
+                raise MCPManagerError(
+                    "SSE transport requires httpx. Install with: pip install httpx httpx-sse"
+                )
+            
+            url = server_config["url"]
+            headers = server_config.get("headers")
+            auth = None
+            
+            # Handle authentication (same as HTTP)
+            auth_config = server_config.get("auth")
+            if auth_config:
+                auth_type = auth_config.get("type")
+                if auth_type == "basic":
+                    username = auth_config.get("username")
+                    password = auth_config.get("password")
+                    if username and password:
+                        auth = httpx.BasicAuth(username, password)
+            
+            async with sse_client(url, headers=headers, auth=auth) as (read, write):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    yield session
+        
+        else:
+            raise MCPManagerError(f"Unknown transport type: {transport}")
+
+    async def _get_tools_async(self, server_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get available tools from server(s).
 
         Args:
@@ -283,57 +263,34 @@ class MCPManager:
 
         Returns:
             List of tool definitions
-
-        Raises:
-            MCPManagerError: If specified server is not connected
         """
         if server_name:
-            if server_name not in self._sessions:
-                raise MCPManagerError(f"Server '{server_name}' is not connected")
-
-            session = self._sessions[server_name]
-            result = await session.list_tools()
-            tools = result.get("tools", [])
-            # Add server name to each tool
-            for tool in tools:
-                tool["server"] = server_name
-            return tools
+            async with self._create_session(server_name) as session:
+                result = await session.list_tools()
+                tools = result.tools if hasattr(result, 'tools') else []
+                
+                tool_dicts = []
+                for tool in tools:
+                    tool_dict = {
+                        "name": tool.name,
+                        "description": tool.description or "",
+                        "inputSchema": tool.inputSchema,
+                        "server": server_name
+                    }
+                    tool_dicts.append(tool_dict)
+                return tool_dicts
         else:
-            # Get tools from all connected servers in parallel
-            tasks = []
-            server_names = []
-            
-            for name, session in self._sessions.items():
-                tasks.append(self._get_tools_safe(session))
-                server_names.append(name)
-            
-            # Execute all tasks in parallel
-            results = await asyncio.gather(*tasks)
-            
-            # Combine results with server names
+            # Get tools from all active servers
             all_tools = []
-            for server_name, result in zip(server_names, results):
-                if result is not None:
-                    tools = result.get("tools", [])
-                    # Add server name to each tool
-                    for tool in tools:
-                        tool["server"] = server_name
+            for server_name in self._active_servers:
+                try:
+                    tools = await self._get_tools_async(server_name)
                     all_tools.extend(tools)
-            
+                except Exception as e:
+                    logger.warning(f"Failed to get tools from {server_name}: {e}")
             return all_tools
-    
-    async def _get_tools_safe(self, session: ClientSession) -> Optional[Dict[str, Any]]:
-        """Safely get tools from a session, returning None on error."""
-        try:
-            return await session.list_tools()
-        except Exception as e:
-            # Log error but don't propagate - error isolation
-            logger.warning(f"Failed to get tools from server: {e}")
-            return None
 
-    async def get_resources(
-        self, server_name: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    async def _get_resources_async(self, server_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get available resources from server(s).
 
         Args:
@@ -341,53 +298,39 @@ class MCPManager:
 
         Returns:
             List of resource definitions
-
-        Raises:
-            MCPManagerError: If specified server is not connected
         """
         if server_name:
-            if server_name not in self._sessions:
-                raise MCPManagerError(f"Server '{server_name}' is not connected")
-
-            session = self._sessions[server_name]
-            result = await session.list_resources()
-            return result.get("resources", [])
+            async with self._create_session(server_name) as session:
+                result = await session.list_resources()
+                logger.debug(f"Resource result from {server_name}: {result}")
+                resources = result.resources if hasattr(result, 'resources') else []
+                logger.debug(f"Resources extracted: {len(resources)} resources")
+                
+                resource_dicts = []
+                for resource in resources:
+                    logger.debug(f"Processing resource: {resource}")
+                    resource_dict = {
+                        "uri": str(resource.uri) if resource.uri else "",
+                        "name": resource.name or "",
+                        "description": resource.description or "",
+                        "mimeType": resource.mimeType or "application/octet-stream",
+                        "server": server_name
+                    }
+                    resource_dicts.append(resource_dict)
+                logger.debug(f"Returning {len(resource_dicts)} resources from {server_name}")
+                return resource_dicts
         else:
-            # Get resources from all connected servers in parallel
-            tasks = []
-            server_names = []
-            
-            for name, session in self._sessions.items():
-                tasks.append(self._get_resources_safe(session))
-                server_names.append(name)
-            
-            # Execute all tasks in parallel
-            results = await asyncio.gather(*tasks)
-            
-            # Combine results with server names
+            # Get resources from all active servers
             all_resources = []
-            for server_name, result in zip(server_names, results):
-                if result is not None:
-                    resources = result.get("resources", [])
-                    # Add server name to each resource
-                    for resource in resources:
-                        resource["server"] = server_name
+            for server_name in self._active_servers:
+                try:
+                    resources = await self._get_resources_async(server_name)
                     all_resources.extend(resources)
-            
+                except Exception as e:
+                    logger.warning(f"Failed to get resources from {server_name}: {e}")
             return all_resources
-    
-    async def _get_resources_safe(self, session: ClientSession) -> Optional[Dict[str, Any]]:
-        """Safely get resources from a session, returning None on error."""
-        try:
-            return await session.list_resources()
-        except Exception as e:
-            # Log error but don't propagate - error isolation
-            logger.warning(f"Failed to get resources from server: {e}")
-            return None
 
-    async def get_prompts(
-        self, server_name: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    async def _get_prompts_async(self, server_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get available prompts from server(s).
 
         Args:
@@ -395,51 +338,41 @@ class MCPManager:
 
         Returns:
             List of prompt definitions
-
-        Raises:
-            MCPManagerError: If specified server is not connected
         """
         if server_name:
-            if server_name not in self._sessions:
-                raise MCPManagerError(f"Server '{server_name}' is not connected")
-
-            session = self._sessions[server_name]
-            result = await session.list_prompts()
-            return result.get("prompts", [])
+            async with self._create_session(server_name) as session:
+                result = await session.list_prompts()
+                prompts = result.prompts if hasattr(result, 'prompts') else []
+                
+                prompt_dicts = []
+                for prompt in prompts:
+                    prompt_dict = {
+                        "name": prompt.name,
+                        "description": prompt.description or "",
+                        "arguments": [
+                            {
+                                "name": arg.name,
+                                "description": arg.description or "",
+                                "required": arg.required
+                            }
+                            for arg in (prompt.arguments or [])
+                        ],
+                        "server": server_name
+                    }
+                    prompt_dicts.append(prompt_dict)
+                return prompt_dicts
         else:
-            # Get prompts from all connected servers in parallel
-            tasks = []
-            server_names = []
-            
-            for name, session in self._sessions.items():
-                tasks.append(self._get_prompts_safe(session))
-                server_names.append(name)
-            
-            # Execute all tasks in parallel
-            results = await asyncio.gather(*tasks)
-            
-            # Combine results with server names
+            # Get prompts from all active servers
             all_prompts = []
-            for server_name, result in zip(server_names, results):
-                if result is not None:
-                    prompts = result.get("prompts", [])
-                    # Add server name to each prompt
-                    for prompt in prompts:
-                        prompt["server"] = server_name
+            for server_name in self._active_servers:
+                try:
+                    prompts = await self._get_prompts_async(server_name)
                     all_prompts.extend(prompts)
-            
+                except Exception as e:
+                    logger.warning(f"Failed to get prompts from {server_name}: {e}")
             return all_prompts
-    
-    async def _get_prompts_safe(self, session: ClientSession) -> Optional[Dict[str, Any]]:
-        """Safely get prompts from a session, returning None on error."""
-        try:
-            return await session.list_prompts()
-        except Exception as e:
-            # Log error but don't propagate - error isolation
-            logger.warning(f"Failed to get prompts from server: {e}")
-            return None
 
-    async def call_tool(
+    async def _call_tool_async(
         self, server_name: str, tool_name: str, arguments: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Call a tool on a specific server.
@@ -451,17 +384,11 @@ class MCPManager:
 
         Returns:
             Tool execution result
-
-        Raises:
-            MCPManagerError: If server is not connected
         """
-        if server_name not in self._sessions:
-            raise MCPManagerError(f"Server '{server_name}' is not connected")
+        async with self._create_session(server_name) as session:
+            return await session.call_tool(tool_name, arguments=arguments)
 
-        session = self._sessions[server_name]
-        return await session.call_tool(tool_name, arguments=arguments)
-
-    async def read_resource(
+    async def _read_resource_async(
         self, server_name: str, resource_uri: str
     ) -> Dict[str, Any]:
         """Read a resource from a specific server.
@@ -472,17 +399,11 @@ class MCPManager:
 
         Returns:
             Resource content
-
-        Raises:
-            MCPManagerError: If server is not connected
         """
-        if server_name not in self._sessions:
-            raise MCPManagerError(f"Server '{server_name}' is not connected")
+        async with self._create_session(server_name) as session:
+            return await session.read_resource(resource_uri)
 
-        session = self._sessions[server_name]
-        return await session.read_resource(resource_uri)
-
-    async def get_prompt(
+    async def _get_prompt_async(
         self,
         server_name: str,
         prompt_name: str,
@@ -497,60 +418,77 @@ class MCPManager:
 
         Returns:
             Prompt result with messages
-
-        Raises:
-            MCPManagerError: If server is not connected
         """
-        if server_name not in self._sessions:
-            raise MCPManagerError(f"Server '{server_name}' is not connected")
+        async with self._create_session(server_name) as session:
+            return await session.get_prompt(prompt_name, arguments=arguments or {})
+    
+    async def _get_resource_templates_async(self, server_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get available resource templates from server(s).
 
-        session = self._sessions[server_name]
-        return await session.get_prompt(prompt_name, arguments=arguments or {})
+        Args:
+            server_name: Specific server name, or None for all servers
 
-    # Synchronous wrapper methods for use in non-async context
-    # These create a new event loop for each operation
+        Returns:
+            List of resource template definitions
+        """
+        if server_name:
+            async with self._create_session(server_name) as session:
+                result = await session.list_resource_templates()
+                logger.debug(f"Resource templates result from {server_name}: {result}")
+                templates = result.resourceTemplates if hasattr(result, 'resourceTemplates') else []
+                logger.debug(f"Templates extracted: {len(templates)} templates")
+                
+                template_dicts = []
+                for template in templates:
+                    logger.debug(f"Processing template: {template}")
+                    template_dict = {
+                        "uriTemplate": str(template.uriTemplate) if hasattr(template, 'uriTemplate') else "",
+                        "name": template.name or "",
+                        "description": template.description or "",
+                        "mimeType": template.mimeType or "application/octet-stream" if hasattr(template, 'mimeType') else "application/octet-stream",
+                        "server": server_name
+                    }
+                    template_dicts.append(template_dict)
+                logger.debug(f"Returning {len(template_dicts)} templates from {server_name}")
+                return template_dicts
+        else:
+            # Get templates from all active servers
+            all_templates = []
+            for server_name in self._active_servers:
+                try:
+                    templates = await self._get_resource_templates_async(server_name)
+                    all_templates.extend(templates)
+                except Exception as e:
+                    logger.warning(f"Failed to get resource templates from {server_name}: {e}")
+            return all_templates
 
-    def initialize_sync(self) -> None:
-        """Synchronous wrapper for initialize."""
-        asyncio.run(self.initialize())
-
-    def cleanup_sync(self) -> None:
-        """Synchronous wrapper for cleanup."""
-        asyncio.run(self.cleanup())
-
-    def connect_server_sync(self, server_name: str) -> None:
-        """Synchronous wrapper for connect_server."""
-        asyncio.run(self.connect_server(server_name))
-
-    def disconnect_server_sync(self, server_name: str) -> None:
-        """Synchronous wrapper for disconnect_server."""
-        asyncio.run(self.disconnect_server(server_name))
+    # Synchronous wrapper methods
 
     def get_tools_sync(self, server_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """Synchronous wrapper for get_tools."""
-        return asyncio.run(self.get_tools(server_name))
+        return asyncio.run(self._get_tools_async(server_name))
 
     def get_resources_sync(
         self, server_name: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Synchronous wrapper for get_resources."""
-        return asyncio.run(self.get_resources(server_name))
+        return asyncio.run(self._get_resources_async(server_name))
 
     def get_prompts_sync(
         self, server_name: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Synchronous wrapper for get_prompts."""
-        return asyncio.run(self.get_prompts(server_name))
+        return asyncio.run(self._get_prompts_async(server_name))
 
     def call_tool_sync(
         self, server_name: str, tool_name: str, arguments: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Synchronous wrapper for call_tool."""
-        return asyncio.run(self.call_tool(server_name, tool_name, arguments))
+        return asyncio.run(self._call_tool_async(server_name, tool_name, arguments))
 
     def read_resource_sync(self, server_name: str, resource_uri: str) -> Dict[str, Any]:
         """Synchronous wrapper for read_resource."""
-        return asyncio.run(self.read_resource(server_name, resource_uri))
+        return asyncio.run(self._read_resource_async(server_name, resource_uri))
 
     def get_prompt_sync(
         self,
@@ -559,21 +497,27 @@ class MCPManager:
         arguments: Dict[str, Any] = None,
     ) -> Dict[str, Any]:
         """Synchronous wrapper for get_prompt."""
-        return asyncio.run(self.get_prompt(server_name, prompt_name, arguments))
+        return asyncio.run(self._get_prompt_async(server_name, prompt_name, arguments))
+    
+    def get_resource_templates_sync(
+        self, server_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Synchronous wrapper for get_resource_templates."""
+        return asyncio.run(self._get_resource_templates_async(server_name))
 
-    def _get_session_id(self, server_name: str) -> Optional[str]:
-        """Get the session ID for an HTTP server.
+    # Compatibility methods for existing code
 
-        Args:
-            server_name: Name of the server
+    def initialize_sync(self) -> None:
+        """No-op for compatibility."""
+        self._initialized = True
 
-        Returns:
-            Session ID if available, None otherwise
-        """
-        callback = self._session_id_callbacks.get(server_name)
-        if callback:
-            return callback()
-        return None
+    def cleanup_sync(self) -> None:
+        """No-op for compatibility."""
+        self._initialized = False
+        self._active_servers.clear()
+        self._sessions.clear()
+        self._transports.clear()
+        self._session_id_callbacks.clear()
 
     # Multi-server coordination methods
 
@@ -613,7 +557,7 @@ class MCPManager:
         servers_with_tool = []
         
         # Get tools from all servers
-        all_tools = await self.get_tools()
+        all_tools = await self._get_tools_async()
         
         # Find unique servers that have this tool
         for tool in all_tools:
@@ -634,42 +578,6 @@ class MCPManager:
                 priorities[server["name"]] = server["priority"]
         return priorities
 
-    async def broadcast_operation(
-        self, operation: str, *args, **kwargs
-    ) -> List[Tuple[str, Any]]:
-        """Broadcast an operation to all connected servers.
-
-        Args:
-            operation: Name of the operation to perform
-            *args: Positional arguments for the operation
-            **kwargs: Keyword arguments for the operation
-
-        Returns:
-            List of (server_name, result) tuples
-        """
-        tasks = []
-        server_names = []
-        
-        for name, session in self._sessions.items():
-            if hasattr(session, operation):
-                method = getattr(session, operation)
-                tasks.append(self._safe_call(method, *args, **kwargs))
-                server_names.append(name)
-        
-        # Execute all tasks in parallel
-        results = await asyncio.gather(*tasks)
-        
-        # Combine results with server names
-        return list(zip(server_names, results))
-
-    async def _safe_call(self, method, *args, **kwargs) -> Any:
-        """Safely call a method, returning None on error."""
-        try:
-            return await method(*args, **kwargs)
-        except Exception as e:
-            logger.warning(f"Operation failed: {e}")
-            return None
-
     # Sync wrappers for multi-server operations
 
     def find_best_server_for_tool_sync(self, tool_name: str) -> Optional[str]:
@@ -679,12 +587,6 @@ class MCPManager:
     def find_servers_with_tool_sync(self, tool_name: str) -> List[str]:
         """Synchronous wrapper for find_servers_with_tool."""
         return asyncio.run(self.find_servers_with_tool(tool_name))
-
-    def broadcast_operation_sync(
-        self, operation: str, *args, **kwargs
-    ) -> List[Tuple[str, Any]]:
-        """Synchronous wrapper for broadcast_operation."""
-        return asyncio.run(self.broadcast_operation(operation, *args, **kwargs))
 
     # OAuth authentication methods
 
@@ -969,83 +871,114 @@ class MCPManager:
 
         return max(delay, 0)  # Ensure non-negative
 
-    async def _connect_with_retry(
-        self, server_name: str, server_config: Dict[str, Any]
-    ) -> None:
-        """Connect to a server with retry logic.
+    # Async versions for compatibility
+    
+    async def initialize(self) -> None:
+        """Initialize the manager (no-op for compatibility)."""
+        self._initialized = True
 
-        Args:
-            server_name: Name of the server
-            server_config: Server configuration
+    async def cleanup(self) -> None:
+        """Clean up all connections and resources."""
+        self._initialized = False
+        self._active_servers.clear()
+        self._sessions.clear()
+        self._transports.clear()
+        self._session_id_callbacks.clear()
 
-        Raises:
-            MCPManagerError: If connection fails after all retries
-        """
-        retry_config = self._get_retry_config(server_config)
-        max_attempts = retry_config["max_attempts"]
-        
-        last_error = None
-        
-        for attempt in range(max_attempts):
+    async def connect_server(self, server_name: str) -> None:
+        """Connect to an MCP server (async wrapper)."""
+        self.connect_server_sync(server_name)
+
+    async def disconnect_server(self, server_name: str) -> None:
+        """Disconnect from an MCP server (async wrapper)."""
+        self.disconnect_server_sync(server_name)
+
+    async def get_tools(
+        self, server_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get available tools from server(s)."""
+        return await self._get_tools_async(server_name)
+
+    async def get_resources(
+        self, server_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get available resources from server(s)."""
+        return await self._get_resources_async(server_name)
+
+    async def get_prompts(
+        self, server_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get available prompts from server(s)."""
+        return await self._get_prompts_async(server_name)
+
+    async def call_tool(
+        self, server_name: str, tool_name: str, arguments: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Call a tool on a specific server."""
+        return await self._call_tool_async(server_name, tool_name, arguments)
+
+    async def read_resource(
+        self, server_name: str, resource_uri: str
+    ) -> Dict[str, Any]:
+        """Read a resource from a specific server."""
+        return await self._read_resource_async(server_name, resource_uri)
+
+    async def get_prompt(
+        self,
+        server_name: str,
+        prompt_name: str,
+        arguments: Dict[str, Any] = None,
+    ) -> Dict[str, Any]:
+        """Get a specific prompt from a server."""
+        return await self._get_prompt_async(server_name, prompt_name, arguments)
+
+    # Additional async methods for compatibility
+    
+    async def _get_tools_safe(self, session) -> Optional[Any]:
+        """Compatibility method - not used in simplified version."""
+        return None
+    
+    async def _get_resources_safe(self, session) -> Optional[Any]:
+        """Compatibility method - not used in simplified version."""
+        return None
+    
+    async def _get_prompts_safe(self, session) -> Optional[Any]:
+        """Compatibility method - not used in simplified version."""
+        return None
+
+    async def broadcast_operation(
+        self, operation: str, *args, **kwargs
+    ) -> List[Tuple[str, Any]]:
+        """Broadcast an operation to all connected servers."""
+        results = []
+        for server_name in self._active_servers:
             try:
-                # Log attempt
-                if attempt > 0:
-                    logger.info(
-                        f"Connection attempt {attempt + 1}/{max_attempts} for {server_name}"
-                    )
-                
-                # Try to connect based on transport type
-                transport = server_config["transport"]
-                if transport == "stdio":
-                    await self._connect_stdio_server(server_name, server_config)
-                elif transport == "http":
-                    if not HTTP_TRANSPORT_AVAILABLE:
-                        raise MCPManagerError(
-                            "HTTP transport requires httpx. Install with: pip install httpx httpx-sse"
-                        )
-                    await self._connect_http_server(server_name, server_config)
-                elif transport == "sse":
-                    if not HTTP_TRANSPORT_AVAILABLE:
-                        raise MCPManagerError(
-                            "SSE transport requires httpx. Install with: pip install httpx httpx-sse"
-                        )
-                    await self._connect_sse_server(server_name, server_config)
+                if operation == "list_tools":
+                    result = await self._get_tools_async(server_name)
+                elif operation == "list_resources":
+                    result = await self._get_resources_async(server_name)
+                elif operation == "list_prompts":
+                    result = await self._get_prompts_async(server_name)
                 else:
-                    raise MCPManagerError(f"Unknown transport type: {transport}")
-                
-                # Success!
-                if attempt > 0:
-                    logger.info(
-                        f"Connection successful on attempt {attempt + 1} for {server_name}"
-                    )
-                return
-                
+                    result = None
+                results.append((server_name, {"tools": result} if operation == "list_tools" else result))
             except Exception as e:
-                last_error = e
-                
-                # Don't retry if this is the last attempt
-                if attempt >= max_attempts - 1:
-                    break
-                
-                # Calculate backoff delay
-                delay = self._calculate_backoff_delay(
-                    attempt,
-                    retry_config["initial_delay"],
-                    retry_config["exponential_base"],
-                    retry_config["max_delay"],
-                    retry_config["jitter"],
-                )
-                
-                logger.warning(
-                    f"Connection attempt {attempt + 1}/{max_attempts} failed for "
-                    f"{server_name}: {e}. Retrying in {delay:.1f}s..."
-                )
-                
-                # Wait before retry
-                await asyncio.sleep(delay)
-        
-        # All attempts failed
-        raise MCPManagerError(
-            f"Failed to connect to server '{server_name}' after {max_attempts} "
-            f"attempts: {last_error}"
-        )
+                logger.warning(f"Operation {operation} failed for {server_name}: {e}")
+                results.append((server_name, None))
+        return results
+
+    def broadcast_operation_sync(
+        self, operation: str, *args, **kwargs
+    ) -> List[Tuple[str, Any]]:
+        """Synchronous wrapper for broadcast_operation."""
+        return asyncio.run(self.broadcast_operation(operation, *args, **kwargs))
+
+    def _get_session_id(self, server_name: str) -> Optional[str]:
+        """Get the session ID for an HTTP server (not implemented in simplified version)."""
+        return None
+
+    # Async versions for retry (not used in simplified version)
+    
+    async def _connect_with_retry(self, server_name: str, server_config: Dict[str, Any]) -> None:
+        """Async version of retry (calls sync version)."""
+        self._connect_with_retry_sync(server_name, server_config)

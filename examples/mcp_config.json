@@ -1,0 +1,35 @@
+{
+  "servers": [
+    {
+      "name": "filesystem",
+      "transport": "stdio",
+      "command": ["uv", "run", "python", "examples/mcp-servers/filesystem_server.py"],
+      "env": {
+        "FILE_SERVER_BASE_PATH": "."
+      },
+      "retry": {
+        "max_attempts": 3,
+        "initial_delay": 1.0
+      }
+    },
+    {
+      "name": "weather",
+      "transport": "stdio",
+      "command": ["uv", "run", "python", "examples/mcp-servers/weather_server.py"],
+      "retry": {
+        "max_attempts": 5,
+        "initial_delay": 2.0,
+        "max_delay": 10.0
+      }
+    },
+    {
+      "name": "filesystem-examples",
+      "transport": "stdio",
+      "command": ["uv", "run", "python", "examples/mcp-servers/filesystem_server.py"],
+      "env": {
+        "FILE_SERVER_BASE_PATH": "./examples"
+      },
+      "priority": 2
+    }
+  ]
+}

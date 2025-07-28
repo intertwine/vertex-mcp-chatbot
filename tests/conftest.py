@@ -5,6 +5,11 @@ import os
 import tempfile
 from unittest.mock import Mock, AsyncMock, patch
 from src.config import Config
+from tests.mock_mcp_types import (
+    create_mock_list_tools_result,
+    create_mock_list_resources_result,
+    create_mock_list_prompts_result,
+)
 
 
 @pytest.fixture
@@ -139,9 +144,9 @@ def mock_mcp_session():
     """Fixture providing a mock MCP client session."""
     session = AsyncMock()
     session.initialize = AsyncMock()
-    session.list_tools = AsyncMock(return_value={"tools": []})
-    session.list_resources = AsyncMock(return_value={"resources": []})
-    session.list_prompts = AsyncMock(return_value={"prompts": []})
+    session.list_tools = AsyncMock(return_value=create_mock_list_tools_result([]))
+    session.list_resources = AsyncMock(return_value=create_mock_list_resources_result([]))
+    session.list_prompts = AsyncMock(return_value=create_mock_list_prompts_result([]))
     session.call_tool = AsyncMock()
     session.read_resource = AsyncMock()
     return session

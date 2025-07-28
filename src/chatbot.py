@@ -2,7 +2,11 @@
 
 import sys
 import os
+import re
+import json
+import logging
 from typing import Optional, Tuple, Dict, Any, List
+
 from prompt_toolkit import prompt
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
@@ -16,8 +20,8 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 from io import StringIO
-import re
-import json
+
+logger = logging.getLogger(__name__)
 from .gemini_client import GeminiClient
 
 # Try to import MCP components
@@ -44,6 +48,9 @@ class GeminiChatbot:
         self.chat_dir = ".chat"
         os.makedirs(self.chat_dir, exist_ok=True)
         self.history_file = os.path.join(self.chat_dir, "log.txt")
+        
+        # Flag to force new chat session when MCP servers change
+        self._force_new_session = False
 
     def initialize(self):
         """Initialize the Gemini client and MCP manager."""
@@ -110,119 +117,133 @@ class GeminiChatbot:
     def _display_scrollable_content(self, rendered_content: str, title: str):
         """Display content in a scrollable interface."""
         lines = rendered_content.split("\n")
+        
+        try:
+            # Create key bindings for scrolling
+            kb = KeyBindings()
 
-        # Create key bindings for scrolling
-        kb = KeyBindings()
+            @kb.add("q")
+            @kb.add("escape")
+            def _(event):
+                "Exit the scrollable view"
+                event.app.exit()
 
-        @kb.add("q")
-        @kb.add("escape")
-        def _(event):
-            "Exit the scrollable view"
-            event.app.exit()
+            @kb.add("up")
+            @kb.add("k")
+            def _(event):
+                "Scroll up"
+                buffer = event.app.layout.current_buffer
+                if buffer.cursor_position > 0:
+                    # Move cursor up by finding the previous line start
+                    current_text = buffer.text
+                    current_pos = buffer.cursor_position
+                    prev_newline = current_text.rfind("\n", 0, current_pos - 1)
+                    if prev_newline == -1:
+                        buffer.cursor_position = 0
+                    else:
+                        prev_prev_newline = current_text.rfind("\n", 0, prev_newline - 1)
+                        buffer.cursor_position = (
+                            prev_prev_newline + 1 if prev_prev_newline != -1 else 0
+                        )
 
-        @kb.add("up")
-        @kb.add("k")
-        def _(event):
-            "Scroll up"
-            buffer = event.app.layout.current_buffer
-            if buffer.cursor_position > 0:
-                # Move cursor up by finding the previous line start
+            @kb.add("down")
+            @kb.add("j")
+            def _(event):
+                "Scroll down"
+                buffer = event.app.layout.current_buffer
                 current_text = buffer.text
                 current_pos = buffer.cursor_position
-                prev_newline = current_text.rfind("\n", 0, current_pos - 1)
-                if prev_newline == -1:
-                    buffer.cursor_position = 0
-                else:
-                    prev_prev_newline = current_text.rfind("\n", 0, prev_newline - 1)
+                next_newline = current_text.find("\n", current_pos)
+                if next_newline != -1:
+                    next_next_newline = current_text.find("\n", next_newline + 1)
                     buffer.cursor_position = (
-                        prev_prev_newline + 1 if prev_prev_newline != -1 else 0
+                        next_next_newline + 1
+                        if next_next_newline != -1
+                        else len(current_text)
                     )
 
-        @kb.add("down")
-        @kb.add("j")
-        def _(event):
-            "Scroll down"
-            buffer = event.app.layout.current_buffer
-            current_text = buffer.text
-            current_pos = buffer.cursor_position
-            next_newline = current_text.find("\n", current_pos)
-            if next_newline != -1:
-                next_next_newline = current_text.find("\n", next_newline + 1)
-                buffer.cursor_position = (
-                    next_next_newline + 1
-                    if next_next_newline != -1
-                    else len(current_text)
-                )
+            @kb.add("home")
+            @kb.add("g")
+            def _(event):
+                "Go to top"
+                event.app.layout.current_buffer.cursor_position = 0
 
-        @kb.add("home")
-        @kb.add("g")
-        def _(event):
-            "Go to top"
-            event.app.layout.current_buffer.cursor_position = 0
+            @kb.add("end")
+            @kb.add("G")
+            def _(event):
+                "Go to bottom"
+                buffer = event.app.layout.current_buffer
+                buffer.cursor_position = len(buffer.text)
 
-        @kb.add("end")
-        @kb.add("G")
-        def _(event):
-            "Go to bottom"
-            buffer = event.app.layout.current_buffer
-            buffer.cursor_position = len(buffer.text)
+            # Create buffer with the content
+            from prompt_toolkit.document import Document
 
-        # Create buffer with the content
-        from prompt_toolkit.document import Document
+            buffer = Buffer(
+                document=Document(rendered_content),
+                read_only=True,
+            )
 
-        buffer = Buffer(
-            document=Document(rendered_content),
-            read_only=True,
-        )
-
-        # Create the layout
-        root_container = HSplit(
-            [
-                Window(
-                    content=BufferControl(buffer=buffer),
-                    height=None,
-                    wrap_lines=True,
-                ),
-                Window(
-                    content=BufferControl(
-                        buffer=Buffer(
-                            document=None,
-                            read_only=True,
-                        )
+            # Create the layout
+            root_container = HSplit(
+                [
+                    Window(
+                        content=BufferControl(buffer=buffer),
+                        height=None,
+                        wrap_lines=True,
                     ),
-                    height=1,
-                    style="reverse",
-                ),
-            ]
-        )
+                    Window(
+                        content=BufferControl(
+                            buffer=Buffer(
+                                document=None,
+                                read_only=True,
+                            )
+                        ),
+                        height=1,
+                        style="reverse",
+                    ),
+                ]
+            )
 
-        # Add help text to the bottom window
-        help_text = "↑/↓ or j/k: scroll | Home/g: top | End/G: bottom | q/Esc: exit"
-        help_buffer = Buffer(document=Document(help_text), read_only=True)
-        root_container.children[1].content.buffer = help_buffer
+            # Add help text to the bottom window
+            help_text = "↑/↓ or j/k: scroll | Home/g: top | End/G: bottom | q/Esc: exit"
+            help_buffer = Buffer(document=Document(help_text), read_only=True)
+            root_container.children[1].content.buffer = help_buffer
 
-        layout = Layout(root_container)
+            layout = Layout(root_container)
 
-        # Create and run the application
-        app = Application(
-            layout=layout,
-            key_bindings=kb,
-            full_screen=True,
-            mouse_support=True,
-        )
+            # Create and run the application
+            app = Application(
+                layout=layout,
+                key_bindings=kb,
+                full_screen=True,
+                mouse_support=True,
+            )
 
-        content_type = title.lower()
-        self.console.print(f"\n[dim]{title} is long. Opening scrollable view...[/dim]")
-        self.console.print(
-            "[dim]Use arrow keys or j/k to scroll, q/Esc to exit[/dim]\n"
-        )
+            content_type = title.lower()
+            self.console.print(f"\n[dim]{title} is long. Opening scrollable view...[/dim]")
+            self.console.print(
+                "[dim]Use arrow keys or j/k to scroll, q/Esc to exit[/dim]\n"
+            )
 
-        try:
-            app.run()
-        except KeyboardInterrupt:
-            pass
+            try:
+                app.run()
+            except KeyboardInterrupt:
+                pass
+            except OSError as e:
+                if e.errno == 22:  # EINVAL - Invalid argument
+                    # Fallback: just print the content without scrolling
+                    self.console.print(f"\n[yellow]Cannot display scrollable view in this terminal.[/yellow]")
+                    self.console.print("[dim]Displaying content directly:[/dim]\n")
+                    self.console.print(rendered_content)
+                else:
+                    raise
 
-        self.console.print("[dim]Returned to chat[/dim]\n")
+            self.console.print("[dim]Returned to chat[/dim]\n")
+        except Exception as e:
+            # If any error in setting up the scrollable view, just print normally
+            self.console.print(f"\n[yellow]Unable to display scrollable view: {e}[/yellow]")
+            self.console.print("[dim]Displaying content directly:[/dim]\n")
+            self.console.print(rendered_content)
 
     def display_help(self):
         """Display help information."""
@@ -422,6 +443,8 @@ class GeminiChatbot:
             self.console.print(
                 f"[green]✅ Connected to MCP server: {server_name}[/green]"
             )
+            # Force new chat session on next message to update system instruction
+            self._force_new_session = True
         except Exception as e:
             self.console.print(f"[red]❌ Failed to connect: {e}[/red]")
 
@@ -432,6 +455,8 @@ class GeminiChatbot:
             self.console.print(
                 f"[yellow]🔌 Disconnected from MCP server: {server_name}[/yellow]"
             )
+            # Force new chat session on next message to update system instruction
+            self._force_new_session = True
         except Exception as e:
             self.console.print(f"[red]❌ Failed to disconnect: {e}[/red]")
 
@@ -518,26 +543,48 @@ class GeminiChatbot:
             return
 
         try:
+            # Get both static resources and resource templates
             resources = self.mcp_manager.get_resources_sync()
+            templates = self.mcp_manager.get_resource_templates_sync()
 
-            if not resources:
+            if not resources and not templates:
                 self.console.print(
                     "[dim]No resources available from connected servers[/dim]"
                 )
                 return
 
             self.console.print("\n[bold]MCP Resources:[/bold]")
-            for resource in resources:
-                server = resource.get("server", "unknown")
-                name = resource.get("name", "Unnamed")
-                uri = resource.get("uri", "")
-                desc = resource.get("description", "No description")
-                mime = resource.get("mimeType", "unknown")
+            
+            # Show static resources
+            if resources:
+                self.console.print("\n[cyan]Static Resources:[/cyan]")
+                for resource in resources:
+                    server = resource.get("server", "unknown")
+                    name = resource.get("name", "Unnamed")
+                    uri = resource.get("uri", "")
+                    desc = resource.get("description", "No description")
+                    mime = resource.get("mimeType", "unknown")
 
-                self.console.print(f"\n• {name} (from {server})")
-                self.console.print(f"  URI: {uri}")
-                self.console.print(f"  Type: {mime}")
-                self.console.print(f"  Description: {desc}")
+                    self.console.print(f"\n• {name} (from {server})")
+                    self.console.print(f"  URI: {uri}")
+                    self.console.print(f"  Type: {mime}")
+                    self.console.print(f"  Description: {desc}")
+            
+            # Show resource templates
+            if templates:
+                self.console.print("\n[cyan]Resource Templates:[/cyan]")
+                for template in templates:
+                    server = template.get("server", "unknown")
+                    name = template.get("name", "Unnamed")
+                    uri_template = template.get("uriTemplate", "")
+                    desc = template.get("description", "No description")
+                    mime = template.get("mimeType", "unknown")
+
+                    self.console.print(f"\n• {name} (from {server})")
+                    self.console.print(f"  URI Template: {uri_template}")
+                    self.console.print(f"  Type: {mime}")
+                    self.console.print(f"  Description: {desc}")
+            
             self.console.print()
 
         except Exception as e:
@@ -604,9 +651,12 @@ class GeminiChatbot:
                 prompt_result = self.mcp_manager.get_prompt_sync(
                     server_name, prompt_name, arguments
                 )
+                logger.debug(f"Prompt result type: {type(prompt_result)}")
+                logger.debug(f"Prompt result: {prompt_result}")
 
             # Format the prompt for Gemini
             prompt_text = self._format_prompt_for_gemini(prompt_result)
+            logger.debug(f"Formatted prompt text: {prompt_text}")
 
             # Process as a chat message
             self._process_chat_message(prompt_text)
@@ -658,11 +708,40 @@ class GeminiChatbot:
             if not tools:
                 return ""
 
-            context = "\nAvailable MCP Tools:\n"
+            # Group tools by name to identify conflicts
+            tools_by_name = {}
             for tool in tools:
-                context += (
-                    f"\n- Tool: {tool['name']} (from {tool.get('server', 'unknown')})\n"
-                )
+                tool_name = tool["name"]
+                if tool_name not in tools_by_name:
+                    tools_by_name[tool_name] = []
+                tools_by_name[tool_name].append(tool)
+            
+            context = "\nAvailable MCP Tools:\n"
+            
+            # If there are tools with the same name from different servers, note it
+            has_conflicts = any(len(servers) > 1 for servers in tools_by_name.values())
+            if has_conflicts:
+                context += "\nNote: Some tools are available from multiple servers. I will automatically select the best server based on context.\n"
+                
+                # Add specific notes about filesystem servers
+                filesystem_servers = [s['name'] for s in self.mcp_manager.list_servers() 
+                                    if s['connected'] and 'filesystem' in s['name']]
+                if len(filesystem_servers) > 1:
+                    context += f"\nFilesystem servers connected: {', '.join(filesystem_servers)}"
+                    context += "\n- 'filesystem' provides access to the current directory"
+                    context += "\n- 'filesystem-examples' provides access to the examples directory"
+            
+            # Show unique tools
+            for tool_name, tool_instances in sorted(tools_by_name.items()):
+                tool = tool_instances[0]  # Use first instance for description
+                
+                context += f"\n- Tool: {tool_name}"
+                if len(tool_instances) > 1:
+                    servers = [t['server'] for t in tool_instances]
+                    context += f" (available from: {', '.join(servers)})"
+                else:
+                    context += f" (from {tool.get('server', 'unknown')})"
+                context += "\n"
                 context += (
                     f"  Description: {tool.get('description', 'No description')}\n"
                 )
@@ -676,7 +755,10 @@ class GeminiChatbot:
                         context += f"    - {param}: {schema.get('type', 'any')} - {schema.get('description', 'No description')}{req_text}\n"
 
             return context
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error formatting MCP tools context: {e}")
+            import traceback
+            traceback.print_exc()
             return ""
 
     def _detect_tool_request(
@@ -687,10 +769,40 @@ class GeminiChatbot:
         Returns:
             Tuple of (tool_name, arguments) or (None, None) if no tool request detected.
         """
-        # Pattern 1: "Let me use the X tool" or "I'll use the X tool"
+        # Pattern 1: New format "MCP Tool Call: function_name(arg1=value1, arg2=value2)"
+        # Also handle server-specific format "MCP Tool Call: server.function_name(args)"
+        mcp_pattern = r"MCP Tool Call:\s*(?:(\w+)\.)?(\w+)\((.*?)\)"
+        mcp_match = re.search(mcp_pattern, response)
+        
+        if mcp_match:
+            server_prefix = mcp_match.group(1)  # Optional server name
+            tool_name = mcp_match.group(2)
+            args_str = mcp_match.group(3)
+            
+            # Parse arguments
+            arguments = {}
+            if args_str.strip():
+                # Split by comma but handle nested parentheses/quotes
+                import ast
+                try:
+                    # Try to evaluate as a Python function call
+                    # Create a safe dict-like string and evaluate it
+                    args_dict_str = "{" + args_str.replace("=", ":") + "}"
+                    # Replace single quotes in values with double quotes for JSON compatibility
+                    args_dict_str = re.sub(r"'([^']*)'", r'"\1"', args_dict_str)
+                    arguments = ast.literal_eval(args_dict_str)
+                except:
+                    # Fallback to simple parsing
+                    arg_matches = re.findall(r"(\w+)=['\"](.*?)['\"]", args_str)
+                    for arg_name, arg_value in arg_matches:
+                        arguments[arg_name] = arg_value
+            
+            return tool_name, arguments
+
+        # Pattern 2: "Let me use the X tool" or "I'll use the X tool"
         pattern1 = r"(?:Let me use|I'll use|I will use|Using) the (\w+) tool"
 
-        # Pattern 2: "I need to use the X tool with"
+        # Pattern 3: "I need to use the X tool with"
         pattern2 = r"I need to use the (\w+) tool"
 
         # Check for tool mention
@@ -744,8 +856,30 @@ class GeminiChatbot:
         try:
             result = self.mcp_manager.call_tool_sync(server_name, tool_name, arguments)
 
-            # Extract text content from the result
-            if "content" in result and isinstance(result["content"], list):
+            # Handle CallToolResult object from MCP SDK
+            if hasattr(result, 'content'):
+                # Extract content from the result object
+                content = result.content
+                if isinstance(content, list):
+                    text_parts = []
+                    for item in content:
+                        if hasattr(item, 'type') and item.type == "text" and hasattr(item, 'text'):
+                            text_parts.append(item.text)
+                        elif isinstance(item, dict) and item.get("type") == "text":
+                            text_parts.append(item.get("text", ""))
+                    return (
+                        "\n".join(text_parts)
+                        if text_parts
+                        else "Tool executed successfully (no text output)"
+                    )
+                elif hasattr(content, '__dict__'):
+                    # Convert object to dict for display
+                    return f"Tool result: {json.dumps(content.__dict__)}"
+                else:
+                    return f"Tool result: {str(content)}"
+            
+            # Fallback for dict format
+            elif isinstance(result, dict) and "content" in result:
                 text_parts = []
                 for content in result["content"]:
                     if content.get("type") == "text":
@@ -756,7 +890,7 @@ class GeminiChatbot:
                     else "Tool executed successfully (no text output)"
                 )
 
-            return f"Tool result: {json.dumps(result)}"
+            return f"Tool result: {str(result)}"
 
         except Exception as e:
             return f"Error executing tool '{tool_name}': {str(e)}"
@@ -788,7 +922,10 @@ class GeminiChatbot:
                     context += f"  Type: {resource['mimeType']}\n"
 
             return context
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error formatting MCP tools context: {e}")
+            import traceback
+            traceback.print_exc()
             return ""
 
     def _detect_resource_reference(self, text: str) -> List[str]:
@@ -881,22 +1018,40 @@ class GeminiChatbot:
 
         return arguments
 
-    def _format_prompt_for_gemini(self, prompt_result: Dict[str, Any]) -> str:
+    def _format_prompt_for_gemini(self, prompt_result) -> str:
         """Format MCP prompt messages for Gemini.
 
         Extracts user messages from the prompt result and formats them
         as a single message for Gemini.
         """
-        messages = prompt_result.get("messages", [])
+        # Handle Pydantic GetPromptResult object
+        if hasattr(prompt_result, 'messages'):
+            messages = prompt_result.messages
+        else:
+            # Fallback for dict format
+            messages = prompt_result.get("messages", [])
 
         # Extract text from user messages
         user_texts = []
         for msg in messages:
-            if msg.get("role") == "user":
-                content = msg.get("content", {})
-                if isinstance(content, dict) and content.get("type") == "text":
+            # Handle message object or dict
+            role = msg.role if hasattr(msg, 'role') else msg.get("role")
+            if role == "user":
+                # Get content - could be an object or dict
+                content = msg.content if hasattr(msg, 'content') else msg.get("content", {})
+                
+                # Handle different content formats
+                if hasattr(content, 'text'):
+                    # TextContent object from MCP
+                    user_texts.append(content.text)
+                elif hasattr(content, 'type') and content.type == 'text' and hasattr(content, 'text'):
+                    # Alternative TextContent format
+                    user_texts.append(content.text)
+                elif isinstance(content, dict) and content.get("type") == "text":
+                    # Dict format
                     user_texts.append(content.get("text", ""))
                 elif isinstance(content, str):
+                    # Direct string
                     user_texts.append(content)
 
         # Join all user texts into a single message
@@ -973,41 +1128,75 @@ class GeminiChatbot:
 
             if tools_context:
                 system_instruction += f"\n{tools_context}"
-                system_instruction += "\nWhen a user asks for something that could benefit from using one of these tools, mention that you'll use the appropriate tool."
+                system_instruction += "\n\nIMPORTANT: When a user asks for something that could benefit from using one of these tools, you MUST respond with 'MCP Tool Call: tool_name(arg1=value1, arg2=value2)' format."
+                system_instruction += "\n\nFor example:"
+                system_instruction += "\n- If asked about weather, use: MCP Tool Call: get_weather(location='city name')"
+                system_instruction += "\n- If asked to list files, use: MCP Tool Call: list_files(directory='.')"
+                system_instruction += "\n- If asked to read a file, use: MCP Tool Call: read_file(path='filename')"
+                system_instruction += "\n\nDo NOT say you don't have access to tools - use the MCP tools listed above."
+                system_instruction += "\n\nIMPORTANT: Do NOT prefix tool names with server names. Just use the tool name directly."
+                system_instruction += "\n\nWhen working with file tools:"
+                system_instruction += "\n- Each filesystem server has its own base directory"
+                system_instruction += "\n- For listing files in the current directory of a server, use: MCP Tool Call: list_files(directory='.')"
+                system_instruction += "\n- For listing files in a subdirectory, use: MCP Tool Call: list_files(directory='subdirectory')"
+                system_instruction += "\n- Do NOT use absolute paths or paths outside the server's base directory"
 
             if resources_context:
                 system_instruction += f"\n{resources_context}"
                 system_instruction += "\nThese resources can be accessed when the user references them by URI."
+        else:
+            # No MCP tools available
+            system_instruction = "You are a helpful AI assistant. Note: No MCP tools are currently connected."
 
+        # Check if we need to force a new session due to MCP server changes
+        if self._force_new_session and self.client.chat_session:
+            self.client.clear_chat()
+            self._force_new_session = False
+            self.console.print("[dim]Starting new conversation with updated MCP tools...[/dim]")
+        
         # Get response from Gemini
         with self.console.status("[dim]Thinking...[/dim]"):
-            response = self.client.send_message(enhanced_message, system_instruction)
+            # Only pass system_instruction if it's not None
+            if system_instruction:
+                response = self.client.send_message(enhanced_message, system_instruction)
+            else:
+                response = self.client.send_message(enhanced_message)
 
         # Display initial response
         self.display_response(response)
 
         # Check if response indicates a tool should be called
         tool_name, arguments = self._detect_tool_request(response)
+        
+        logger.debug(f"Tool detection result: tool_name={tool_name}, arguments={arguments}")
 
         if tool_name and self.mcp_manager:
             # Find which server provides this tool
             server_name = self._find_tool_server(tool_name)
+            logger.debug(f"Tool server found: {server_name}")
 
             if server_name:
                 # Execute the tool
-                with self.console.status(f"[dim]Executing {tool_name} tool...[/dim]"):
+                self.console.print(f"[dim]Executing {tool_name} tool with args {arguments}...[/dim]")
+                try:
                     tool_result = self._execute_mcp_tool(
                         server_name, tool_name, arguments
                     )
+                    logger.debug(f"Tool result: {tool_result}")
+                    
+                    # Send tool result back to Gemini for final response
+                    follow_up = f"The {tool_name} tool returned: {tool_result}\n\nPlease provide a natural response to the user based on this result."
 
-                # Send tool result back to Gemini for final response
-                follow_up = f"The {tool_name} tool returned: {tool_result}\n\nPlease provide a natural response to the user based on this result."
+                    with self.console.status("[dim]Processing tool result...[/dim]"):
+                        final_response = self.client.send_message(follow_up)
 
-                with self.console.status("[dim]Processing tool result...[/dim]"):
-                    final_response = self.client.send_message(follow_up)
-
-                # Display final response
-                self.display_response(final_response)
+                    # Display final response
+                    self.display_response(final_response)
+                except Exception as e:
+                    logger.error(f"Error executing tool {tool_name}: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    self.console.print(f"[red]Error executing tool: {e}[/red]")
             else:
                 self.console.print(
                     f"[yellow]Tool '{tool_name}' not found in connected servers[/yellow]"
@@ -1019,17 +1208,24 @@ class GeminiChatbot:
 
         # Create prompt session with history
         history = FileHistory(self.history_file)
+        use_simple_input = False  # Flag to use simple input if prompt_toolkit fails
 
         while True:
             try:
-                # Get user input with rich prompt
-                user_input = prompt(
-                    "You> ",
-                    history=history,
-                    auto_suggest=AutoSuggestFromHistory(),
-                    multiline=False,
-                    mouse_support=True,
-                )
+                # Get user input 
+                if use_simple_input:
+                    # Fallback to simple input
+                    self.console.print("[green]You>[/green] ", end="")
+                    user_input = input()
+                else:
+                    # Try using prompt_toolkit
+                    user_input = prompt(
+                        "You> ",
+                        history=history,
+                        auto_suggest=AutoSuggestFromHistory(),
+                        multiline=False,
+                        mouse_support=True,
+                    )
 
                 # Skip empty input
                 if not user_input.strip():
@@ -1046,8 +1242,25 @@ class GeminiChatbot:
 
             except KeyboardInterrupt:
                 self.console.print("\n[yellow]Use '/quit' to exit properly[/yellow]")
+            except OSError as e:
+                # Handle terminal/prompt_toolkit errors
+                if e.errno == 22:  # EINVAL - Invalid argument
+                    if not use_simple_input:
+                        self.console.print(f"\n[yellow]Terminal error detected. Switching to simple input mode.[/yellow]")
+                        self.console.print("[dim]Note: Command history and auto-suggestions will be disabled.[/dim]\n")
+                        use_simple_input = True
+                        continue
+                    else:
+                        self.console.print(f"\n[bold red]Terminal error persists. Unable to continue.[/bold red]")
+                        break
+                else:
+                    self.console.print(f"\n[bold red]OS Error: {e}[/bold red]")
+                    import traceback
+                    traceback.print_exc()
             except Exception as e:
                 self.console.print(f"\n[bold red]Error: {e}[/bold red]")
+                import traceback
+                traceback.print_exc()
 
         # Cleanup before exit
         self.cleanup()
