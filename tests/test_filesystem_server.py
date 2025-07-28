@@ -36,67 +36,39 @@ from filesystem_server import (
 class TestFilesystemServer:
     """Test filesystem MCP server functionality."""
 
-    def setup_method(self):
-        """Set up test environment."""
-        # Create test files in current directory for testing
-        self.create_test_files()
+    @pytest.fixture(autouse=True)
+    def setup_test_env(self, tmp_path, monkeypatch):
+        """Set up test environment with temporary directory."""
+        # Change to temp directory
+        original_cwd = Path.cwd()
+        monkeypatch.chdir(tmp_path)
+        
+        # Mock BASE_PATH to use temp directory
+        monkeypatch.setattr('filesystem_server.BASE_PATH', tmp_path)
+        
+        # Create test files in temp directory
+        self.create_test_files(tmp_path)
+        
+        yield
+        
+        # Change back to original directory
+        monkeypatch.chdir(original_cwd)
 
-    def teardown_method(self):
-        """Clean up test environment."""
-        # Clean up test files
-        self.cleanup_test_files()
-
-    def create_test_files(self):
+    def create_test_files(self, base_path):
         """Create test files and directories."""
-        # Create test files in current directory
-        Path("test.txt").write_text("Hello, World!")
-        Path("test.json").write_text('{"key": "value"}')
-        Path("test.py").write_text("print('Hello')")
+        # Create test files in temp directory
+        (base_path / "test.txt").write_text("Hello, World!")
+        (base_path / "test.json").write_text('{"key": "value"}')
+        (base_path / "test.py").write_text("print('Hello')")
 
         # Create subdirectory with files
-        subdir = Path("test_subdir")
+        subdir = base_path / "test_subdir"
         subdir.mkdir(exist_ok=True)
         (subdir / "nested.txt").write_text("Nested file content")
 
         # Create empty directory
-        Path("test_empty_dir").mkdir(exist_ok=True)
+        (base_path / "test_empty_dir").mkdir(exist_ok=True)
 
-    def cleanup_test_files(self):
-        """Clean up test files and directories."""
-        import shutil
-
-        # Clean up test files
-        test_files = [
-            "test.txt",
-            "test.json",
-            "test.py",
-            "new_file.txt",
-            "empty.txt",
-            "restricted.txt",
-        ]
-        for file in test_files:
-            try:
-                # Restore permissions in case they were changed
-                file_path = Path(file)
-                if file_path.exists():
-                    file_path.chmod(0o644)
-                    file_path.unlink()
-            except (FileNotFoundError, OSError):
-                pass
-
-        # Clean up test directories
-        test_dirs = [
-            "test_subdir",
-            "test_empty_dir",
-            "new_directory",
-            "new_dir",
-            "level1",
-        ]
-        for dir_name in test_dirs:
-            try:
-                shutil.rmtree(dir_name)
-            except (FileNotFoundError, OSError):
-                pass
 
 
 class TestValidatePath(TestFilesystemServer):
@@ -124,11 +96,12 @@ class TestValidatePath(TestFilesystemServer):
         result = validate_path("/etc/passwd")
         assert result is None
 
-    def test_validate_path_current_directory(self):
+    def test_validate_path_current_directory(self, tmp_path):
         """Test path validation with current directory."""
         result = validate_path(".")
         assert result is not None
-        assert result == BASE_PATH
+        # Use tmp_path instead of the imported BASE_PATH
+        assert result == tmp_path
 
 
 class TestGetMimeType:
