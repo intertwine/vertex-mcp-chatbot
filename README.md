@@ -7,7 +7,7 @@
 [![Documentation](https://img.shields.io/badge/documentation-purple.svg)](https://modelcontextprotocol.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An interactive command-line chatbot powered by Google's Gemini LLM via Vertex AI. This application provides a rich terminal interface for conversing with Gemini models, complete with markdown rendering, conversation history, various utility commands, and Model Context Protocol (MCP) support.
+An interactive command-line chatbot powered by Google's Gemini LLM via Vertex AI. This application provides a rich terminal interface for conversing with Gemini models, complete with markdown rendering, conversation history, various utility commands, and Model Context Protocol (MCP) support. 
 
 ## Features
 
@@ -53,7 +53,7 @@ cd vertex-mcp-chatbot
 uv sync
 ```
 
-3. (REQUIRED) Activate the virtual environment manually:
+3. (OPTIONAL) Activate the virtual environment manually:
 ```bash
 source .venv/bin/activate
 ```
