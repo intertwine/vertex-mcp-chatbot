@@ -140,7 +140,11 @@ class TestMCPManager:
         """Test connecting to HTTP transport server when httpx not available."""
         manager = MCPManager(mock_config)
 
-        with pytest.raises(MCPManagerError, match="HTTP transport requires httpx"):
+        # The error will be wrapped by retry logic
+        with pytest.raises(
+            MCPManagerError,
+            match="Failed to connect to server 'test-http' after 3 attempts",
+        ):
             manager.connect_server_sync("test-http")
 
     @pytest.mark.asyncio
@@ -151,7 +155,7 @@ class TestMCPManager:
         with pytest.raises(MCPManagerError, match="Server 'nonexistent' not found"):
             await manager.connect_server("nonexistent")
 
-    @patch("src.mcp_manager.asyncio.run")
+    @patch("asyncio.run")
     def test_connect_already_connected(
         self, mock_run, mock_config, mock_client_session
     ):

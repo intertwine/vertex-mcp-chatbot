@@ -66,7 +66,7 @@ def retry_config():
 class TestMCPRetry:
     """Test connection retry functionality."""
 
-    @patch("src.mcp_manager.asyncio.run")
+    @patch("asyncio.run")
     @patch("src.mcp_manager.stdio_client")
     @patch("time.sleep")
     def test_stdio_retry_on_failure(
@@ -114,7 +114,7 @@ class TestMCPRetry:
             ]
         )
 
-    @patch("src.mcp_manager.asyncio.run")
+    @patch("asyncio.run")
     def test_stdio_max_retries_exceeded(self, mock_run, retry_config):
         """Test that connection fails after max retries."""
         manager = MCPManager(retry_config)
@@ -132,7 +132,7 @@ class TestMCPRetry:
         assert mock_run.call_count == 3
 
     @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
-    @patch("src.mcp_manager.asyncio.run")
+    @patch("asyncio.run")
     @patch("src.mcp_manager.streamablehttp_client")
     @patch("time.sleep")
     def test_http_retry_with_jitter(
@@ -177,7 +177,7 @@ class TestMCPRetry:
         assert 0.25 <= actual_delay <= 0.75
 
     @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
-    @patch("src.mcp_manager.asyncio.run")
+    @patch("asyncio.run")
     def test_no_retry_when_disabled(self, mock_run, retry_config):
         """Test that retry doesn't happen when not configured."""
         manager = MCPManager(retry_config)
@@ -259,7 +259,7 @@ class TestMCPRetry:
         assert retry_config["exponential_base"] == 2.0
         assert retry_config["jitter"] is True
 
-    @patch("src.mcp_manager.asyncio.run")
+    @patch("asyncio.run")
     @patch("time.sleep")
     def test_retry_logging(self, mock_sleep, mock_run, retry_config, caplog):
         """Test that retries are properly logged."""
@@ -306,7 +306,7 @@ class TestMCPRetry:
         # Connection success is logged at INFO level
         assert any("attempt 2" in msg for msg in info_messages)
 
-    @patch("src.mcp_manager.asyncio.run")
+    @patch("asyncio.run")
     def test_immediate_success_no_retry(self, mock_run, retry_config):
         """Test that successful connection doesn't trigger retries."""
         manager = MCPManager(retry_config)
@@ -320,7 +320,7 @@ class TestMCPRetry:
         assert mock_run.call_count == 1
 
     @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
-    @patch("src.mcp_manager.asyncio.run")
+    @patch("asyncio.run")
     @patch("time.sleep")
     def test_oauth_retry_on_token_exchange_failure(
         self, mock_sleep, mock_run, retry_config

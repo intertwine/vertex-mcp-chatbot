@@ -172,7 +172,7 @@ class TestMCPOAuth:
                                     # not during connection. Connection just marks server as active.
 
     @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
-    @patch("src.mcp_manager.asyncio.run")
+    @patch("asyncio.run")
     @patch("src.mcp_manager.streamablehttp_client")
     @patch(
         "builtins.open",
@@ -251,7 +251,7 @@ class TestMCPOAuth:
 
         # In simplified implementation, HTTP client is only called when creating sessions
 
-    @patch("src.mcp_manager.asyncio.run")
+    @patch("asyncio.run")
     @patch("src.mcp_manager.streamablehttp_client")
     @patch("src.mcp_manager.httpx.AsyncClient")
     @patch("builtins.input")
@@ -464,7 +464,7 @@ class TestMCPOAuth:
             == "http://localhost:8080/callback?code=auth-code&state=test-state"
         )
 
-    @patch("src.mcp_manager.asyncio.run")
+    @patch("asyncio.run")
     def test_oauth_config_validation(self, mock_run):
         """Test OAuth configuration validation."""
         config = Mock()
