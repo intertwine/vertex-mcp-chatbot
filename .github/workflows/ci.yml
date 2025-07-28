@@ -43,7 +43,7 @@ jobs:
         file: ./coverage.xml
         fail_ci_if_error: false
 
-  example-tests:
+  example-server-tests:
     runs-on: ubuntu-latest
 
     steps:
