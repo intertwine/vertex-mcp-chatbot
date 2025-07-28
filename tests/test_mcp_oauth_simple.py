@@ -43,6 +43,7 @@ def oauth_server_config():
 class TestOAuthSimplified:
     """Simplified OAuth tests that don't execute actual flows."""
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     def test_connect_oauth_server(self, oauth_server_config):
         """Test basic OAuth server connection."""
         manager = MCPManager(oauth_server_config)
