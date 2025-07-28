@@ -1,9 +1,10 @@
 """Test MCP configuration loading and validation."""
 
 import json
-import pytest
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from src.mcp_config import MCPConfig, MCPConfigError
 

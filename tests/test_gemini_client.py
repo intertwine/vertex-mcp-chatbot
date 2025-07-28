@@ -1,9 +1,11 @@
 """Tests for the gemini_client module."""
 
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from src.gemini_client import GeminiClient
+
 from src.config import Config
+from src.gemini_client import GeminiClient
 
 
 class TestGeminiClient:

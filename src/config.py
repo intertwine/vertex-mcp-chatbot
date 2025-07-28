@@ -1,6 +1,7 @@
 """Configuration for the Gemini chatbot."""
 
 import os
+
 from dotenv import load_dotenv
 
 # Load environment variables

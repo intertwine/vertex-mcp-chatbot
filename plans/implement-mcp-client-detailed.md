@@ -568,7 +568,7 @@ The MCP client will be integrated as a new component that works alongside the ex
 
 **Phase 2 Status:** ✅ COMPLETE
 - Tool execution in chat flow ✅
-- Resource embedding in prompts ✅ 
+- Resource embedding in prompts ✅
 - Prompt template usage ✅
 
 All three increments of Phase 2 are now complete. The chatbot can:
@@ -815,6 +815,3 @@ All four increments of Phase 3 (Advanced Features) are now complete:
 - Create tests for the example servers
 - Add performance optimization features
 - Create MCP development guide for building custom servers
-
-
-

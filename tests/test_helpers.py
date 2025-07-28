@@ -1,7 +1,7 @@
 """Test helpers for handling async code in tests."""
 
 import asyncio
-from typing import Any, Callable, TypeVar, Coroutine
+from typing import Any, Callable, Coroutine, TypeVar
 
 T = TypeVar("T")
 

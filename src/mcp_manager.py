@@ -3,17 +3,17 @@
 import asyncio
 import logging
 import random
-from typing import Dict, List, Any, Optional, Tuple
 from contextlib import asynccontextmanager
+from typing import Any, Dict, List, Optional, Tuple
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 # Import HTTP/SSE transports
 try:
-    from mcp.client.streamable_http import streamablehttp_client
-    from mcp.client.sse import sse_client
     import httpx
+    from mcp.client.sse import sse_client
+    from mcp.client.streamable_http import streamablehttp_client
 
     HTTP_TRANSPORT_AVAILABLE = True
 except ImportError:
@@ -21,15 +21,16 @@ except ImportError:
 
 # Import OAuth support
 try:
-    from rich.console import Console
-    import json
-    import os
-    from datetime import datetime, timedelta
-    import webbrowser
-    from urllib.parse import urlparse, parse_qs
-    import secrets
     import base64
     import hashlib
+    import json
+    import os
+    import secrets
+    import webbrowser
+    from datetime import datetime, timedelta
+    from urllib.parse import parse_qs, urlparse
+
+    from rich.console import Console
 
     OAUTH_AVAILABLE = True
 except ImportError:

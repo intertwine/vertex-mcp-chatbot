@@ -1,21 +1,21 @@
 """Tests for OAuth servers (Authorization Server and Protected MCP Server)."""
 
-import pytest
 import asyncio
-import json
 import base64
 import hashlib
+import json
+import os
 import secrets
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, Mock, patch, MagicMock
-from urllib.parse import urlparse, parse_qs
-
-import httpx
-from fastapi.testclient import TestClient
 
 # Import our OAuth server implementations
 import sys
-import os
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from urllib.parse import parse_qs, urlparse
+
+import httpx
+import pytest
+from fastapi.testclient import TestClient
 
 sys.path.append(
     os.path.join(os.path.dirname(__file__), "..", "examples", "mcp-servers")

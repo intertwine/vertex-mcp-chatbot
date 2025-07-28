@@ -1,0 +1,33 @@
+# Flake8 configuration for the project
+# We use a pragmatic approach - enforcing important style rules while being flexible on others
+
+[flake8]
+max-line-length = 88
+
+# Codes we're ignoring:
+# E203, W503: Black compatibility
+# E501: Line too long (Black handles this)
+# F401: Imported but unused (sometimes needed for re-exports)
+# F841: Local variable assigned but never used
+# E402: Module import not at top of file
+# F541: f-string without placeholders
+# F402: Import shadowed by loop variable
+# E722: Do not use bare except (sometimes needed)
+# D100-D107, D200-D403: Docstring rules (we use docstrings but not strict formatting)
+extend-ignore = E203,W503,E501,F401,F841,E402,F541,D100,D101,D102,D103,D104,D105,D107,D200,D202,D400,D401,D403,F402,E722
+
+# Exclude some directories
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    .eggs,
+    *.egg,
+    build,
+    dist,
+    .pytest_cache,
+    .tox,
+    .nox,
+    .mypy_cache,
+    .hypothesis

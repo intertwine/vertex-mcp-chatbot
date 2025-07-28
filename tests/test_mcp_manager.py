@@ -1,15 +1,16 @@
 """Test MCP manager functionality."""
 
-import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-from src.mcp_manager import MCPManager, MCPManagerError
+import pytest
+
 from src.mcp_config import MCPConfig
+from src.mcp_manager import MCPManager, MCPManagerError
 from tests.mock_mcp_types import (
-    create_mock_list_tools_result,
-    create_mock_list_resources_result,
     create_mock_list_prompts_result,
+    create_mock_list_resources_result,
+    create_mock_list_tools_result,
 )
 from tests.test_async_utils import create_async_run_mock
 

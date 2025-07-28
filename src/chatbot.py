@@ -1,25 +1,25 @@
 """Interactive Gemini chatbot with rich UI."""
 
-import sys
-import os
-import re
 import json
 import logging
-from typing import Optional, Tuple, Dict, Any, List
+import os
+import re
+import sys
+from io import StringIO
+from typing import Any, Dict, List, Optional, Tuple
 
 from prompt_toolkit import prompt
-from prompt_toolkit.history import FileHistory
-from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.application import Application
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.buffer import Buffer
+from prompt_toolkit.history import FileHistory
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout.containers import HSplit, Window
 from prompt_toolkit.layout.controls import BufferControl
 from prompt_toolkit.layout.layout import Layout
-from prompt_toolkit.buffer import Buffer
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
-from io import StringIO
 
 logger = logging.getLogger(__name__)
 from .gemini_client import GeminiClient

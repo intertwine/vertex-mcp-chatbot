@@ -1,8 +1,10 @@
 """Gemini client for interacting with Google Gen AI."""
 
-from typing import Optional, List
+from typing import List, Optional
+
 from google import genai
 from google.genai import types
+
 from .config import Config
 
 

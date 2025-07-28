@@ -326,12 +326,12 @@ class TestYourServer:
     async def test_your_tool_success(self):
         result = await your_tool("valid_input")
         assert result["success"] == True
-    
+
     @pytest.mark.asyncio
     async def test_your_tool_error_handling(self):
         with pytest.raises(ValueError, match="Invalid input"):
             await your_tool("invalid_input")
-    
+
     def test_server_has_tools(self):
         tools = mcp.list_tools()
         tool_names = [tool.name for tool in tools]

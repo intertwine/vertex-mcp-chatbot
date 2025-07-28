@@ -15,19 +15,19 @@ Usage:
     python oauth_protected_server.py [--transport stdio|sse] [--port PORT] [--auth-server AUTH_SERVER_URL]
 """
 
+import argparse
+import asyncio
 import json
+import logging
+import os
 import signal
 import sys
-import os
-import asyncio
-import logging
 from datetime import datetime
-from typing import Dict, Optional, Any, List
-import argparse
+from typing import Any, Dict, List, Optional
 
 import httpx
 from mcp.server.fastmcp import FastMCP
-from mcp.types import Tool, TextContent, ImageContent, EmbeddedResource
+from mcp.types import EmbeddedResource, ImageContent, TextContent, Tool
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

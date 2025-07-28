@@ -5,27 +5,28 @@ These tests verify that the weather_server.py example server correctly
 implements MCP protocol features including tools, resources, and prompts.
 """
 
-import pytest
 import asyncio
 import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 # Add examples directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "examples" / "mcp-servers"))
 
 from weather_server import (
-    mcp,
-    get_weather,
-    get_forecast,
+    WEATHER_CONDITIONS,
     get_alerts,
     get_current_weather_resource,
-    weather_report,
+    get_forecast,
+    get_weather,
+    mcp,
     travel_weather,
     weather_comparison,
-    WEATHER_CONDITIONS,
+    weather_report,
 )
 
 

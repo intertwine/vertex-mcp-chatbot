@@ -1,11 +1,13 @@
 """Integration tests for the chatbot system."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from io import StringIO
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+
 from src.chatbot import GeminiChatbot
-from src.gemini_client import GeminiClient
 from src.config import Config
+from src.gemini_client import GeminiClient
 
 
 class TestIntegration:

@@ -2,7 +2,7 @@
 
 import asyncio
 from typing import Any, Callable, Dict, Optional
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 
 def create_async_run_mock(handlers: Optional[Dict[str, Callable]] = None) -> Mock:

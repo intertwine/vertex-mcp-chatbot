@@ -1,7 +1,8 @@
 """Common test fixtures for MCP tests."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 
 @pytest.fixture

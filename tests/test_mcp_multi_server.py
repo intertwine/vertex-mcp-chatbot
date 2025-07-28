@@ -1,15 +1,16 @@
 """Tests for MCP multi-server coordination."""
 
-import pytest
-from unittest.mock import AsyncMock, Mock, patch
 import asyncio
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.mcp_manager import MCPManager, MCPManagerError
+import pytest
+
 from src.mcp_config import MCPConfig
+from src.mcp_manager import MCPManager, MCPManagerError
 from tests.mock_mcp_types import (
-    create_mock_list_tools_result,
-    create_mock_list_resources_result,
     create_mock_list_prompts_result,
+    create_mock_list_resources_result,
+    create_mock_list_tools_result,
 )
 
 

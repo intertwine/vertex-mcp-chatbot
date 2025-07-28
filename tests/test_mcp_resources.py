@@ -1,7 +1,9 @@
 """Tests for MCP resource handling in chatbot."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
+
 from src.chatbot import GeminiChatbot
 
 

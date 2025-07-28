@@ -152,7 +152,7 @@ MCP resources are automatically read when you reference them by URI in your mess
 ```
 You> Can you analyze the data in file:///home/user/sales_report.csv?
 
-[The chatbot automatically reads the CSV file and includes its content in the prompt to Gemini, 
+[The chatbot automatically reads the CSV file and includes its content in the prompt to Gemini,
 who can then analyze and discuss the data]
 ```
 
@@ -537,15 +537,21 @@ To extend or modify the chatbot:
 # Install dev dependencies
 uv sync --extra dev
 
+# Install pre-commit hooks (one-time setup)
+uv run pre-commit install
+
 # Run tests during development
 uv run pytest tests/ -v --tb=short
 
 # Run tests with coverage
 uv run python scripts/run_tests.py --coverage
 
-# Format code
+# Format code manually (or let pre-commit do it automatically)
 uv run black src/ tests/
 uv run isort src/ tests/
+
+# Run all pre-commit hooks manually
+uv run pre-commit run --all-files
 
 # Lint code
 uv run flake8 src/ tests/

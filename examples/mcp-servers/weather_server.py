@@ -10,14 +10,13 @@ Usage:
 """
 
 import json
+import os
+import random
 import signal
 import sys
-import os
 from datetime import datetime, timedelta
-import random
 
 from mcp.server.fastmcp import FastMCP
-
 
 # Initialize FastMCP server
 mcp = FastMCP("weather-server")

@@ -5,31 +5,32 @@ These tests verify that the filesystem_server.py example server correctly
 implements MCP protocol features including tools, resources, and prompts.
 """
 
-import pytest
 import asyncio
-import tempfile
-import os
 import json
+import os
+import sys
+import tempfile
 from pathlib import Path
 from typing import Optional
-from unittest.mock import Mock, patch, AsyncMock
-import sys
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 # Add examples directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "examples" / "mcp-servers"))
 
 from filesystem_server import (
-    mcp,
-    validate_path,
+    BASE_PATH,
+    analyze_directory,
+    create_directory,
     get_mime_type,
     list_files,
+    mcp,
     read_file,
-    write_file,
-    create_directory,
     read_resource,
-    analyze_directory,
     summarize_file,
-    BASE_PATH,
+    validate_path,
+    write_file,
 )
 
 
@@ -42,15 +43,15 @@ class TestFilesystemServer:
         # Change to temp directory
         original_cwd = Path.cwd()
         monkeypatch.chdir(tmp_path)
-        
+
         # Mock BASE_PATH to use temp directory
-        monkeypatch.setattr('filesystem_server.BASE_PATH', tmp_path)
-        
+        monkeypatch.setattr("filesystem_server.BASE_PATH", tmp_path)
+
         # Create test files in temp directory
         self.create_test_files(tmp_path)
-        
+
         yield
-        
+
         # Change back to original directory
         monkeypatch.chdir(original_cwd)
 
@@ -68,7 +69,6 @@ class TestFilesystemServer:
 
         # Create empty directory
         (base_path / "test_empty_dir").mkdir(exist_ok=True)
-
 
 
 class TestValidatePath(TestFilesystemServer):

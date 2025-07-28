@@ -1,7 +1,9 @@
 """Tests for MCP prompt template handling in chatbot."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
+
 from src.chatbot import GeminiChatbot
 
 # Suppress runtime warnings about unawaited coroutines in this test module

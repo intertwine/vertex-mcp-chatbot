@@ -32,6 +32,9 @@ By participating in this project, you agree to abide by our [Code of Conduct](CO
 
    # Install dependencies
    uv sync --all-extras --dev
+
+   # Install pre-commit hooks
+   uv run pre-commit install
    ```
 
 3. **Make your changes**:
@@ -62,10 +65,12 @@ By participating in this project, you agree to abide by our [Code of Conduct](CO
 
 #### Code Style
 
-- We use [Black](https://github.com/psf/black) for code formatting
+- We use [Black](https://github.com/psf/black) for code formatting (automatically applied via pre-commit)
+- We use [isort](https://github.com/PyCQA/isort) for import sorting (automatically applied via pre-commit)
 - Follow PEP 8 guidelines
 - Use type hints where appropriate
 - Write descriptive docstrings for all public functions and classes
+- Pre-commit hooks will automatically format your code on commit
 
 #### Testing
 

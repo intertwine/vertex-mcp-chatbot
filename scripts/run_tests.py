@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Test runner script for the Vertex AI Chatbot project."""
 
-import sys
-import subprocess
 import argparse
+import subprocess
+import sys
 from pathlib import Path
 
 

@@ -4,7 +4,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 
 class MCPConfigError(Exception):

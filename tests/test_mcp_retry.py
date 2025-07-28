@@ -1,12 +1,13 @@
 """Tests for MCP connection retry logic."""
 
-import pytest
-from unittest.mock import AsyncMock, Mock, patch, call, mock_open
 import asyncio
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, call, mock_open, patch
 
-from src.mcp_manager import MCPManager, MCPManagerError
+import pytest
+
 from src.mcp_config import MCPConfig
+from src.mcp_manager import MCPManager, MCPManagerError
 from tests.mock_mcp_types import create_mock_list_tools_result
 from tests.test_helpers import make_sync_run_handler
 

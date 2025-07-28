@@ -1,9 +1,11 @@
 """Tests for the chatbot module."""
 
 import os
-import pytest
-from unittest.mock import Mock, patch, MagicMock, call, mock_open
 from io import StringIO
+from unittest.mock import MagicMock, Mock, call, mock_open, patch
+
+import pytest
+
 from src.chatbot import GeminiChatbot
 from src.gemini_client import GeminiClient
 

@@ -1,9 +1,10 @@
 """Tests for scrollable response functionality."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
-from io import StringIO
 import sys
+from io import StringIO
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 # Mock MCP modules before importing chatbot
 sys.modules["src.mcp_config"] = Mock()

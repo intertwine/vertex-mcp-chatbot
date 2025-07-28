@@ -16,19 +16,19 @@ Usage:
     python oauth_auth_server.py [--port PORT]
 """
 
-import json
-import secrets
 import base64
 import hashlib
+import json
 import logging
+import secrets
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 from urllib.parse import urlencode
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Form, Query, Request
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi import FastAPI, Form, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -151,7 +151,7 @@ class OAuthAuthServer:
                     <p><strong>Scope:</strong> {scope}</p>
                     <p><strong>Redirect URI:</strong> {redirect_uri}</p>
                 </div>
-                
+
                 <form method="post" action="/oauth/authorize">
                     <input type="hidden" name="client_id" value="{client_id}">
                     <input type="hidden" name="redirect_uri" value="{redirect_uri}">
@@ -160,20 +160,20 @@ class OAuthAuthServer:
                     <input type="hidden" name="state" value="{state or ''}">
                     <input type="hidden" name="code_challenge" value="{code_challenge}">
                     <input type="hidden" name="code_challenge_method" value="{code_challenge_method}">
-                    
+
                     <div class="form-group">
                         <label for="username">Username:</label>
                         <input type="text" id="username" name="username" required placeholder="testuser">
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="password">Password:</label>
                         <input type="password" id="password" name="password" required placeholder="testpass">
                     </div>
-                    
+
                     <button type="submit">Authorize</button>
                 </form>
-                
+
                 <p><small>Test credentials: username=testuser, password=testpass</small></p>
             </body>
             </html>

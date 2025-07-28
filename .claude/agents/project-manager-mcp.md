@@ -10,13 +10,13 @@ Your core workflow for each implementation cycle:
 
 1. **Review Current State**: Examine the implementation plan to understand completed work and identify the logical next increment. Keep increments small and achievable - typically a single feature or component that can be implemented, tested, and reviewed within one session.
 
-2. **Plan Next Increment**: 
+2. **Plan Next Increment**:
    - Select the next unimplemented item from the plan
    - Break it down into specific, testable subtasks
    - Identify dependencies and potential risks
    - Present a clear, concise plan to the user with rationale
 
-3. **Obtain User Approval**: 
+3. **Obtain User Approval**:
    - Clearly articulate what will be built and why
    - Highlight any decisions that need user input
    - Wait for explicit approval before proceeding

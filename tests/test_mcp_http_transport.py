@@ -1,16 +1,17 @@
 """Tests for MCP HTTP transport integration."""
 
-import pytest
+import asyncio
 import warnings
 from unittest.mock import AsyncMock, Mock, patch
-import asyncio
 
-from src.mcp_manager import MCPManager, MCPManagerError
+import pytest
+
 from src.mcp_config import MCPConfig
+from src.mcp_manager import MCPManager, MCPManagerError
 from tests.mock_mcp_types import (
-    create_mock_list_tools_result,
-    create_mock_list_resources_result,
     create_mock_list_prompts_result,
+    create_mock_list_resources_result,
+    create_mock_list_tools_result,
 )
 from tests.test_async_utils import create_async_run_mock
 

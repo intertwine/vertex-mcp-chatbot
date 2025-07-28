@@ -1,8 +1,9 @@
 """Tests for scrollable output functionality."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from io import StringIO
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 from rich.console import Console
 
 from src.chatbot import GeminiChatbot

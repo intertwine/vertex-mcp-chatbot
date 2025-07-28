@@ -1,13 +1,14 @@
 """Tests for MCP OAuth authentication."""
 
-import pytest
-from unittest.mock import AsyncMock, Mock, patch, mock_open
-import json
 import asyncio
+import json
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, Mock, mock_open, patch
 
-from src.mcp_manager import MCPManager, MCPManagerError
+import pytest
+
 from src.mcp_config import MCPConfig
+from src.mcp_manager import MCPManager, MCPManagerError
 from tests.mock_mcp_types import create_mock_list_tools_result
 from tests.test_async_utils import create_async_run_mock
 from tests.test_helpers import make_sync_run_handler

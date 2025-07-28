@@ -16,7 +16,7 @@ This implementation follows RFC 9728 (OAuth 2.0 for the Model Context Protocol) 
 ### Authorization Server Features
 
 - ✅ **OAuth 2.0 Authorization Code Flow** with PKCE (RFC 7636)
-- ✅ **Token Introspection** (RFC 7662) 
+- ✅ **Token Introspection** (RFC 7662)
 - ✅ **Authorization Server Discovery** (RFC 8414)
 - ✅ **Simple Web-based Login** with test credentials
 - ✅ **In-memory Token Storage** (for testing)
@@ -225,7 +225,7 @@ The client supports these OAuth configuration options in `mcp_config.json`:
 
 **Configuration Fields:**
 - `authorization_url`: OAuth authorization endpoint
-- `token_url`: OAuth token endpoint  
+- `token_url`: OAuth token endpoint
 - `client_id`: OAuth client identifier
 - `client_secret`: OAuth client secret
 - `scope`: Requested OAuth scopes (space-separated)
@@ -287,7 +287,7 @@ curl -X POST http://localhost:9000/oauth/introspect \
 - Verify the client_id in your configuration matches "mcp-test-client"
 - Check that the authorization server is running and accessible
 
-#### "Invalid redirect_uri" Error  
+#### "Invalid redirect_uri" Error
 - Ensure redirect_uri in config matches one of the allowed URIs
 - For CLI usage, use `urn:ietf:wg:oauth:2.0:oob`
 
