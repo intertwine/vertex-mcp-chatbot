@@ -164,6 +164,17 @@ The Model Context Protocol (MCP) integration is now fully implemented with:
 - Automatic token refresh
 - Interactive authorization flow
 
+### Phase 5: Environment Variable Support ✅ COMPLETE
+- **Increment 1**: Environment Variable Substitution ✅ COMPLETE
+  - ✅ Implemented `${VAR_NAME}` expansion in MCP configuration
+  - ✅ Support for values from .env file (already loaded by dotenv)
+  - ✅ Handle missing variables gracefully with clear error messages
+  - ✅ Apply substitution to all string values in config (headers, env, auth, etc.)
+  - ✅ Test coverage for various substitution scenarios (12 tests)
+  - ✅ Support for default values with `${VAR_NAME:-default}` syntax
+  - ✅ Escaped variables with `\\${VAR}` or `$${VAR}` patterns
+  - ✅ Documentation updated in all relevant places
+
 ## Next Steps
 Future enhancements could include:
 1. Performance optimization and caching (future)

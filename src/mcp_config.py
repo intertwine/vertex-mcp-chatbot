@@ -1,8 +1,10 @@
 """MCP configuration management module."""
 
 import json
+import os
+import re
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 
 
 class MCPConfigError(Exception):
@@ -42,6 +44,9 @@ class MCPConfig:
 
         # Get servers list, default to empty if not present
         self.servers = data.get("servers", [])
+
+        # Perform environment variable substitution
+        self.servers = self._substitute_env_vars(self.servers)
 
         # Validate all server configurations
         for server in self.servers:
@@ -108,3 +113,74 @@ class MCPConfig:
     def reload(self) -> None:
         """Reload configuration from file."""
         self._load_config()
+
+    def _substitute_env_vars(self, obj: Any) -> Any:
+        """Recursively substitute environment variables in configuration.
+
+        Args:
+            obj: Configuration object (dict, list, or primitive)
+
+        Returns:
+            Object with environment variables substituted
+
+        Raises:
+            MCPConfigError: If a referenced environment variable is not found
+        """
+        if isinstance(obj, str):
+            return self._substitute_string(obj)
+        elif isinstance(obj, dict):
+            return {key: self._substitute_env_vars(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [self._substitute_env_vars(item) for item in obj]
+        else:
+            # For non-string primitives (int, float, bool, None), return as-is
+            return obj
+
+    def _substitute_string(self, value: str) -> str:
+        """Substitute environment variables in a string.
+
+        Supports:
+        - ${VAR_NAME} - Simple substitution
+        - ${VAR_NAME:-default} - Substitution with default value
+        - \\${VAR_NAME} or $${VAR_NAME} - Escaped, not substituted
+
+        Args:
+            value: String potentially containing environment variables
+
+        Returns:
+            String with environment variables substituted
+
+        Raises:
+            MCPConfigError: If a referenced environment variable is not found
+        """
+        # Handle escaped dollar signs
+        value = value.replace("\\$", "\x00")  # Temporary placeholder
+        value = value.replace("$$", "\x00")   # Alternative escape syntax
+
+        # Pattern to match ${VAR_NAME} or ${VAR_NAME:-default}
+        pattern = r'\$\{([^}:]+)(?::-([^}]*))?\}'
+
+        def replacer(match):
+            var_name = match.group(1)
+            default_value = match.group(2)
+
+            # Get the environment variable value
+            env_value = os.environ.get(var_name)
+
+            if env_value is None:
+                if default_value is not None:
+                    return default_value
+                else:
+                    raise MCPConfigError(
+                        f"Environment variable '{var_name}' not found in configuration value: {value}"
+                    )
+
+            return env_value
+
+        # Perform substitution
+        result = re.sub(pattern, replacer, value)
+
+        # Restore escaped dollar signs
+        result = result.replace("\x00", "$")
+
+        return result

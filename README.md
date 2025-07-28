@@ -46,7 +46,7 @@ cd vertex-mcp-chatbot
 uv sync
 ```
 
-3. (Optional) Activate the virtual environment manually if needed:
+3. (REQUIRED) Activate the virtual environment manually:
 ```bash
 source .venv/bin/activate
 ```
@@ -57,15 +57,15 @@ source .venv/bin/activate
 gcloud auth application-default login
 ```
 
-5. (Optional) Set up environment variables:
+5. (REQUIRED) Set up environment variables:
 ```bash
 cp .env.example .env
 ```
 
-You can optionally edit `.env` to override default project settings:
+You must edit `.env` to override default project settings:
 ```bash
-# GOOGLE_CLOUD_PROJECT='your-gcp-project-id'
-# GOOGLE_CLOUD_LOCATION='us-east1'
+GOOGLE_CLOUD_PROJECT='your-gcp-project-id'
+GOOGLE_CLOUD_LOCATION='us-east1'
 ```
 
 ## Usage
@@ -233,6 +233,33 @@ Create an `mcp_config.json` file in the project root:
 }
 ```
 
+### Environment Variables
+
+The MCP configuration supports environment variable substitution using `${VAR_NAME}` syntax. Variables are automatically loaded from your `.env` file:
+
+```bash
+# .env file
+API_KEY=your-secret-key
+OAUTH_CLIENT_SECRET=your-oauth-secret
+```
+
+```json
+{
+  "servers": [
+    {
+      "name": "api-server",
+      "transport": "http",
+      "url": "https://api.example.com",
+      "headers": {
+        "Authorization": "Bearer ${API_KEY}"
+      }
+    }
+  ]
+}
+```
+
+You can also provide default values with `${VAR_NAME:-default}` syntax.
+
 ### Advanced Configuration Options
 
 #### OAuth 2.0 Authentication
@@ -247,7 +274,7 @@ Create an `mcp_config.json` file in the project root:
     "authorization_url": "https://github.com/login/oauth/authorize",
     "token_url": "https://github.com/login/oauth/access_token",
     "client_id": "your-client-id",
-    "client_secret": "your-client-secret",
+    "client_secret": "${OAUTH_CLIENT_SECRET}",
     "scope": "repo read:user",
     "redirect_uri": "http://localhost:8080/callback"
   }

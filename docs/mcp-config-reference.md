@@ -177,7 +177,9 @@ Configure automatic retry for unreliable connections.
 
 ## Environment Variables
 
-Configuration values can reference environment variables using `${VAR_NAME}` syntax:
+Configuration values can reference environment variables using `${VAR_NAME}` syntax. Environment variables are automatically loaded from your `.env` file if present.
+
+### Basic Substitution
 
 ```json
 {
@@ -190,6 +192,59 @@ Configuration values can reference environment variables using `${VAR_NAME}` syn
     "Authorization": "Bearer ${ACCESS_TOKEN}"
   }
 }
+```
+
+### Default Values
+
+Use `${VAR_NAME:-default}` syntax to provide default values when environment variables are not set:
+
+```json
+{
+  "env": {
+    "DEBUG": "${DEBUG:-false}",
+    "PORT": "${PORT:-8080}",
+    "LOG_LEVEL": "${LOG_LEVEL:-info}"
+  }
+}
+```
+
+### Escaped Variables
+
+To include literal `${...}` in your configuration without substitution, use one of these escape methods:
+
+```json
+{
+  "message": "\\${NOT_A_VARIABLE}",    // Results in: ${NOT_A_VARIABLE}
+  "pattern": "$${ALSO_NOT_A_VAR}"      // Results in: ${ALSO_NOT_A_VAR}
+}
+```
+
+### Loading from .env Files
+
+The chatbot automatically loads environment variables from `.env` files in your project root:
+
+```bash
+# .env file
+MY_API_KEY=secret123
+OAUTH_CLIENT_ID=my-client-id
+OAUTH_CLIENT_SECRET=my-client-secret
+```
+
+### Substitution Scope
+
+Environment variable substitution works in:
+- String values at any nesting level
+- Array elements (if they are strings)
+- Object property values (if they are strings)
+
+Non-string values (numbers, booleans, null) are not affected by substitution.
+
+### Error Handling
+
+If a referenced environment variable is not found and no default is provided, the configuration will fail to load with a clear error message:
+
+```
+MCPConfigError: Environment variable 'MISSING_VAR' not found in configuration value: ${MISSING_VAR}
 ```
 
 ## Complete Examples

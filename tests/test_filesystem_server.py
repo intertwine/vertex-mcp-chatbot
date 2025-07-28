@@ -390,10 +390,17 @@ class TestReadResource(TestFilesystemServer):
     def test_read_resource_not_file(self):
         """Test reading directory as resource."""
         with patch('filesystem_server.sanitize_path') as mock_sanitize, \
-             patch('filesystem_server.is_path_allowed') as mock_is_allowed:
+             patch('filesystem_server.is_path_allowed') as mock_is_allowed, \
+             patch('filesystem_server.BASE_PATH') as mock_base:
             
             mock_sanitize.return_value = "subdir"
             mock_is_allowed.return_value = True
+            
+            # Create a mock path that exists but is not a file
+            mock_path = Mock()
+            mock_path.exists.return_value = True
+            mock_path.is_file.return_value = False
+            mock_base.__truediv__.return_value = mock_path
             
             result = read_resource("subdir")
             assert "Error: Not a file" in result
