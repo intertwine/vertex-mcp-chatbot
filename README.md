@@ -306,7 +306,7 @@ See [examples/README.md](examples/README.md) for detailed setup instructions.
 ## Project Structure
 
 ```
-vertex-ai-chatbot/
+vertex-mcp-chatbot/
 ├── main.py              # Entry point
 ├── pyproject.toml       # Python project configuration and dependencies
 ├── pytest.ini          # Pytest configuration
