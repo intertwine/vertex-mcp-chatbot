@@ -13,12 +13,14 @@ An interactive command-line chatbot powered by Google's Gemini LLM via Vertex AI
 - 📋 **Command System**: Built-in commands for managing your chat session
 - 🔌 **MCP Tool Integration**: When MCP servers are connected, their tools are automatically available to Gemini during conversations
 
-> **Note**: Model Context Protocol (MCP) integration is in active development. Currently supports:
+> **Note**: Model Context Protocol (MCP) integration is fully implemented! Features include:
 > - ✅ Tool execution during conversations
 > - ✅ Resource reading and embedding
 > - ✅ Prompt template usage
 > - ✅ HTTP/SSE transport (in addition to stdio)
-> - 🚧 Multi-server coordination (coming soon)
+> - ✅ Multi-server coordination with priority-based conflict resolution
+> - ✅ OAuth 2.0 authentication support
+> - ✅ Connection retry with exponential backoff
 
 ## Prerequisites
 
@@ -78,6 +80,10 @@ Start with a different model:
 uv run main.py --model gemini-2.5-pro
 ```
 
+### MCP Configuration
+
+To use MCP features, create an `mcp_config.json` file in the project root. See the [MCP User Guide](docs/mcp-guide.md) for detailed configuration instructions and examples.
+
 ### Scrollable Content
 
 When responses or conversation history are too long for your terminal, the chatbot automatically switches to a scrollable view:
@@ -109,6 +115,7 @@ While chatting, you can use these commands:
 - `/mcp connect <server>` - Connect to an MCP server from your config
 - `/mcp list` - Show configured servers and their connection status
 - `/mcp disconnect <server>` - Disconnect from an MCP server
+- `/mcp tools` - Show available tools from all connected servers
 - `/mcp resources` - Show available resources from all connected servers
 - `/mcp prompts` - List available prompt templates from all connected servers
 - `/mcp prompt <name>` - Use a specific prompt template
@@ -205,11 +212,16 @@ vertex-ai-chatbot/
 ├── .env.example        # Example environment file
 ├── .gitignore          # Git ignore rules
 ├── README.md           # This file
+├── mcp_config.json.example # Example MCP server configuration
+├── docs/
+│   └── mcp-guide.md    # Comprehensive MCP user guide
 ├── src/
 │   ├── __init__.py     # Package init
 │   ├── config.py       # Configuration management
 │   ├── gemini_client.py # Gemini/Vertex AI client wrapper
-│   └── chatbot.py      # Interactive chatbot implementation
+│   ├── chatbot.py      # Interactive chatbot implementation
+│   ├── mcp_config.py   # MCP configuration handling
+│   └── mcp_manager.py  # MCP client management
 └── tests/
     ├── __init__.py     # Test package init
     ├── conftest.py     # Pytest fixtures and configuration
@@ -217,7 +229,13 @@ vertex-ai-chatbot/
     ├── test_gemini_client.py # Gemini client tests
     ├── test_chatbot.py # Chatbot functionality tests
     ├── test_main.py    # Main entry point tests
-    └── test_integration.py # Integration tests
+    ├── test_integration.py # Integration tests
+    ├── test_mcp_config.py # MCP configuration tests
+    ├── test_mcp_manager.py # MCP manager tests
+    ├── test_mcp_http_transport.py # HTTP/SSE transport tests
+    ├── test_mcp_multi_server.py # Multi-server coordination tests
+    ├── test_mcp_oauth.py # OAuth authentication tests
+    └── test_mcp_retry.py # Connection retry tests
 ```
 
 ## Configuration
@@ -256,7 +274,7 @@ Ensure:
 
 ## Testing
 
-This project includes a comprehensive test suite with 55+ tests covering all functionality.
+This project includes a comprehensive test suite with 180+ tests covering all functionality.
 
 ### Running Tests
 
