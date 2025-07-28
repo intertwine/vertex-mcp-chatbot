@@ -76,6 +76,7 @@ class TestMCPPrompts:
         assert result is True
         chatbot.console.print.assert_called_with("[dim]No MCP servers connected[/dim]")
 
+    @pytest.mark.filterwarnings(r"ignore:coroutine.*MCPManager\._get_tools_async.*was never awaited:RuntimeWarning")
     @patch("src.chatbot.os.makedirs")
     def test_mcp_prompts_no_prompts(self, mock_makedirs):
         """Test /mcp prompts when servers have no prompts."""

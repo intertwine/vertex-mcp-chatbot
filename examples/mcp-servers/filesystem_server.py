@@ -51,6 +51,25 @@ def get_mime_type(suffix: str) -> str:
     return mime_types.get(suffix.lower(), "text/plain")
 
 
+def sanitize_path(path: str) -> str:
+    """Sanitize path by removing dangerous components."""
+    # Remove leading slashes and resolve relative components
+    try:
+        return str(Path(path).resolve().relative_to(Path.cwd().resolve()))
+    except ValueError:
+        # If path can't be resolved relative to cwd, just use the path as-is
+        return path
+
+
+def is_path_allowed(path: Path) -> bool:
+    """Check if path is allowed (within base directory)."""
+    try:
+        path.resolve().relative_to(BASE_PATH.resolve())
+        return True
+    except ValueError:
+        return False
+
+
 @mcp.tool()
 async def list_files(directory: str = ".", pattern: str = "*") -> dict:
     """

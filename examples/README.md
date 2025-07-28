@@ -218,6 +218,105 @@ Assistant> I'll compare the weather between London and New York.
 - Demonstrates stdio transport for MCP
 - Shows how to implement various data formats and prompt templates
 
+## Testing the Example Servers
+
+The example servers include comprehensive test suites to ensure they work correctly and serve as examples for testing your own MCP servers.
+
+### Running Tests
+
+**Test all example servers:**
+```bash
+# Run all example server tests
+uv run python scripts/run_example_tests.py
+
+# Run with verbose output
+uv run python scripts/run_example_tests.py --verbose
+
+# Run with coverage reporting
+uv run python scripts/run_example_tests.py --coverage
+```
+
+**Test specific servers:**
+```bash
+# Test only filesystem server
+uv run python scripts/run_example_tests.py --filesystem
+
+# Test only weather server
+uv run python scripts/run_example_tests.py --weather
+
+# Check server health before testing
+uv run python scripts/run_example_tests.py --check
+```
+
+**Using pytest directly:**
+```bash
+# Run filesystem server tests
+uv run pytest tests/test_filesystem_server.py -v
+
+# Run weather server tests
+uv run pytest tests/test_weather_server.py -v
+
+# Run both with coverage
+uv run pytest tests/test_*_server.py --cov=examples/mcp-servers --cov-report=term-missing
+```
+
+### Test Coverage
+
+**Filesystem Server Tests (44 tests):**
+- ✅ Path validation and security (prevent directory traversal)
+- ✅ File operations: list_files, read_file, write_file, create_directory
+- ✅ Resource access patterns with file:// URIs
+- ✅ Prompt templates: analyze_directory, summarize_file
+- ✅ Error handling and edge cases
+- ✅ MCP protocol compliance
+
+**Weather Server Tests (39 tests):**
+- ✅ Weather data tools: get_weather, get_forecast, get_alerts
+- ✅ Resource access with weather:// URIs
+- ✅ Prompt templates: weather_report, travel_weather, weather_comparison
+- ✅ Data consistency and validation
+- ✅ Error handling for invalid inputs
+- ✅ MCP protocol compliance
+
+**Integration Tests:**
+- ✅ FastMCP server initialization
+- ✅ Tool registration and discovery
+- ✅ Resource registration and access
+- ✅ Prompt template functionality
+- ✅ Schema validation
+
+### Test Development
+
+When building your own MCP server, use these test patterns:
+
+1. **Tool Testing**: Test each tool with valid inputs, edge cases, and error conditions
+2. **Resource Testing**: Verify resource URIs return correct content and handle errors
+3. **Prompt Testing**: Ensure prompt templates generate correct prompts with parameters
+4. **Security Testing**: Test path validation, access controls, and input sanitization
+5. **Integration Testing**: Verify MCP protocol compliance and server initialization
+
+Example test structure:
+```python
+import pytest
+from your_server import mcp, your_tool
+
+class TestYourServer:
+    @pytest.mark.asyncio
+    async def test_your_tool_success(self):
+        result = await your_tool("valid_input")
+        assert result["success"] == True
+    
+    @pytest.mark.asyncio
+    async def test_your_tool_error_handling(self):
+        with pytest.raises(ValueError, match="Invalid input"):
+            await your_tool("invalid_input")
+    
+    def test_server_has_tools(self):
+        tools = mcp.list_tools()
+        tool_names = [tool.name for tool in tools]
+        assert "your_tool" in tool_names
+```
+
 ## Building Your Own MCP Server
 
 Use these examples as templates for building your own MCP servers:

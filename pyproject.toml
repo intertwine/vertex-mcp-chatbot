@@ -62,3 +62,8 @@ line_length = 88
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
+
+[dependency-groups]
+dev = [
+    "pytest-cov>=6.2.1",
+]

@@ -310,7 +310,9 @@ vertex-ai-chatbot/
 ├── main.py              # Entry point
 ├── pyproject.toml       # Python project configuration and dependencies
 ├── pytest.ini          # Pytest configuration
-├── run_tests.py         # Custom test runner script
+├── scripts/
+│   ├── run_tests.py         # Custom test runner script
+│   └── run_example_tests.py # Example server test runner
 ├── .env.example        # Example environment file
 ├── .gitignore          # Git ignore rules
 ├── README.md           # This file
@@ -376,38 +378,59 @@ Ensure:
 
 ## Testing
 
-This project includes a comprehensive test suite with 180+ tests covering all functionality.
+This project includes a comprehensive test suite with 190+ tests covering all functionality, including example MCP servers.
 
 ### Running Tests
 
 **Quick test run:**
 ```bash
-# Install dev dependencies
+# Install dev dependencies (includes pytest-cov for coverage)
 uv sync --extra dev
 
-# Run all tests
+# Run all tests (including example servers)
 uv run pytest tests/ -v
 ```
 
 **Using the custom test runner:**
 ```bash
 # Run all tests
-uv run python run_tests.py
+uv run python scripts/run_tests.py
 
 # Run with verbose output
-uv run python run_tests.py --verbose
+uv run python scripts/run_tests.py --verbose
 
 # Run with coverage report
-uv run python run_tests.py --coverage
+uv run python scripts/run_tests.py --coverage
 
 # Run only unit tests
-uv run python run_tests.py --unit
+uv run python scripts/run_tests.py --unit
 
 # Run only integration tests
-uv run python run_tests.py --integration
+uv run python scripts/run_tests.py --integration
 
 # Run specific test files
-uv run python run_tests.py tests/test_config.py tests/test_main.py
+uv run python scripts/run_tests.py tests/test_config.py tests/test_main.py
+```
+
+**Example MCP Server Tests:**
+```bash
+# Run all example server tests
+uv run python scripts/run_example_tests.py
+
+# Run with verbose output
+uv run python scripts/run_example_tests.py --verbose
+
+# Run with coverage
+uv run python scripts/run_example_tests.py --coverage
+
+# Run only filesystem server tests
+uv run python scripts/run_example_tests.py --filesystem
+
+# Run only weather server tests
+uv run python scripts/run_example_tests.py --weather
+
+# Check server health
+uv run python scripts/run_example_tests.py --check
 ```
 
 ### Test Categories
@@ -417,6 +440,18 @@ uv run python run_tests.py tests/test_config.py tests/test_main.py
 - `test_gemini_client.py` - Gemini API client functionality (11 tests)
 - `test_chatbot.py` - Interactive chatbot features (23 tests)
 - `test_main.py` - Main entry point and CLI (8 tests)
+
+**MCP Framework Tests:**
+- `test_mcp_manager.py` - MCP client management (25+ tests)
+- `test_mcp_config.py` - MCP configuration handling (15+ tests)
+- `test_mcp_http_transport.py` - HTTP/SSE transport tests (20+ tests)
+- `test_mcp_multi_server.py` - Multi-server coordination (15+ tests)
+- `test_mcp_oauth.py` - OAuth authentication (20+ tests)
+- `test_mcp_retry.py` - Connection retry logic (10+ tests)
+
+**Example Server Tests:**
+- `test_filesystem_server.py` - Filesystem MCP server (44 tests)
+- `test_weather_server.py` - Weather MCP server (39 tests)
 
 **Integration Tests:**
 - `test_integration.py` - Full system integration scenarios
@@ -474,7 +509,7 @@ uv sync --extra dev
 uv run pytest tests/ -v --tb=short
 
 # Run tests with coverage
-uv run python run_tests.py --coverage
+uv run python scripts/run_tests.py --coverage
 
 # Format code
 uv run black src/ tests/
