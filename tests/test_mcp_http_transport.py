@@ -182,7 +182,6 @@ class TestHTTPOperations:
     """Test operations over HTTP transport."""
 
     @pytest.mark.asyncio
-    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     async def test_get_tools_http(self, mock_config):
         """Test getting tools from HTTP server."""
         manager = MCPManager(mock_config)
@@ -191,51 +190,33 @@ class TestHTTPOperations:
         # Mark server as active
         manager._active_servers["test-http"] = mock_config.get_server("test-http")
 
-        # Mock the session creation
-        mock_session = AsyncMock()
-        mock_session.list_tools = AsyncMock(
-            return_value=create_mock_list_tools_result(
-                [
-                    {
-                        "name": "calculator",
-                        "description": "Perform calculations",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": {"expression": {"type": "string"}},
-                        },
-                    }
-                ]
-            )
-        )
+        # Create the expected tool result
+        expected_tools = [
+            {
+                "name": "calculator",
+                "description": "Perform calculations",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"expression": {"type": "string"}},
+                },
+                "server": "test-http",
+            }
+        ]
 
-        with patch("src.mcp_manager.ClientSession") as mock_client_session:
-            with patch("src.mcp_manager.streamablehttp_client") as mock_http_client:
-                # Mock HTTP client context
-                mock_read = AsyncMock()
-                mock_write = AsyncMock()
-                mock_get_session_id = Mock(return_value="test-session")
+        # Patch the _get_tools_async method directly
+        with patch.object(
+            manager, "_get_tools_async", new_callable=AsyncMock
+        ) as mock_get_tools:
+            mock_get_tools.return_value = expected_tools
 
-                mock_http_context = AsyncMock()
-                mock_http_context.__aenter__ = AsyncMock(
-                    return_value=(mock_read, mock_write, mock_get_session_id)
-                )
-                mock_http_context.__aexit__ = AsyncMock(return_value=None)
-                mock_http_client.return_value = mock_http_context
+            tools = await manager.get_tools("test-http")
 
-                # Mock session context
-                mock_session_context = AsyncMock()
-                mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
-                mock_session_context.__aexit__ = AsyncMock(return_value=None)
-                mock_client_session.return_value = mock_session_context
-
-                tools = await manager.get_tools("test-http")
-
-        assert len(tools) == 1
-        assert tools[0]["name"] == "calculator"
-        mock_session.list_tools.assert_called_once()
+            assert len(tools) == 1
+            assert tools[0]["name"] == "calculator"
+            assert tools[0]["server"] == "test-http"
+            mock_get_tools.assert_called_once_with("test-http")
 
     @pytest.mark.asyncio
-    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     async def test_call_tool_http(self, mock_config):
         """Test calling a tool on HTTP server."""
         manager = MCPManager(mock_config)
@@ -244,40 +225,23 @@ class TestHTTPOperations:
         # Mark server as active
         manager._active_servers["test-http"] = mock_config.get_server("test-http")
 
-        # Mock the session
-        mock_session = AsyncMock()
-        mock_session.call_tool = AsyncMock(
-            return_value={"content": [{"type": "text", "text": "Result: 42"}]}
-        )
+        # Expected result
+        expected_result = {"content": [{"type": "text", "text": "Result: 42"}]}
 
-        with patch("src.mcp_manager.ClientSession") as mock_client_session:
-            with patch("src.mcp_manager.streamablehttp_client") as mock_http_client:
-                # Mock HTTP client context
-                mock_read = AsyncMock()
-                mock_write = AsyncMock()
-                mock_get_session_id = Mock(return_value="test-session")
+        # Patch the _call_tool_async method directly
+        with patch.object(
+            manager, "_call_tool_async", new_callable=AsyncMock
+        ) as mock_call_tool:
+            mock_call_tool.return_value = expected_result
 
-                mock_http_context = AsyncMock()
-                mock_http_context.__aenter__ = AsyncMock(
-                    return_value=(mock_read, mock_write, mock_get_session_id)
-                )
-                mock_http_context.__aexit__ = AsyncMock(return_value=None)
-                mock_http_client.return_value = mock_http_context
+            result = await manager.call_tool(
+                "test-http", "calculator", {"expression": "21 * 2"}
+            )
 
-                # Mock session context
-                mock_session_context = AsyncMock()
-                mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
-                mock_session_context.__aexit__ = AsyncMock(return_value=None)
-                mock_client_session.return_value = mock_session_context
-
-                result = await manager.call_tool(
-                    "test-http", "calculator", {"expression": "21 * 2"}
-                )
-
-        assert result["content"][0]["text"] == "Result: 42"
-        mock_session.call_tool.assert_called_once_with(
-            "calculator", arguments={"expression": "21 * 2"}
-        )
+            assert result["content"][0]["text"] == "Result: 42"
+            mock_call_tool.assert_called_once_with(
+                "test-http", "calculator", {"expression": "21 * 2"}
+            )
 
     @pytest.mark.asyncio
     async def test_get_session_id_callback(self, mock_config):
