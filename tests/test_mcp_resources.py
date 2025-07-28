@@ -37,16 +37,18 @@ class TestMCPResources:
                 },
             ]
         )
+        chatbot.mcp_manager.get_resource_templates_sync = Mock(return_value=[])
 
-        result = chatbot.process_command("/mcp resources")
+        with patch.object(chatbot, "display_content") as mock_display:
+            result = chatbot.process_command("/mcp resources")
 
-        assert result is True
-        # Should print header and resources
-        assert chatbot.console.print.call_count >= 3
-        # Verify resource details are shown
-        call_args = [str(call) for call in chatbot.console.print.call_args_list]
-        assert any("API Documentation" in str(arg) for arg in call_args)
-        assert any("file:///docs/api.md" in str(arg) for arg in call_args)
+            assert result is True
+            # Should call display_content once
+            mock_display.assert_called_once()
+            content = mock_display.call_args[0][0]
+            # Verify resource details are in the content
+            assert "API Documentation" in content
+            assert "file:///docs/api.md" in content
 
     @patch("src.chatbot.os.makedirs")
     def test_mcp_resources_no_servers(self, mock_makedirs):

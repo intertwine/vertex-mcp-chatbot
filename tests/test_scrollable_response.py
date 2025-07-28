@@ -6,11 +6,13 @@ from io import StringIO
 import sys
 
 # Mock MCP modules before importing chatbot
-sys.modules['src.mcp_config'] = Mock()
-sys.modules['src.mcp_manager'] = Mock()
+sys.modules["src.mcp_config"] = Mock()
+sys.modules["src.mcp_manager"] = Mock()
 
 # Suppress runtime warnings about unawaited coroutines in this test module
-pytestmark = pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:coroutine.*was never awaited:RuntimeWarning"
+)
 
 from src.chatbot import GeminiChatbot
 

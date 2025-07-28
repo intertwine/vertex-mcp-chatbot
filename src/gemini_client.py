@@ -47,11 +47,11 @@ class GeminiClient:
         self.chat_session = self.client.chats.create(
             model=self.model_name, config=config
         )
-        
+
         # Store system instruction for comparison
         if system_instruction:
             self.chat_session._system_instruction = system_instruction
-        
+
         return self.chat_session
 
     def send_message(
@@ -70,7 +70,9 @@ class GeminiClient:
         # If system instruction changed, start a new chat session
         if system_instruction and self.chat_session:
             # Check if system instruction has changed
-            current_instruction = getattr(self.chat_session, '_system_instruction', None)
+            current_instruction = getattr(
+                self.chat_session, "_system_instruction", None
+            )
             if current_instruction != system_instruction:
                 # Start new session with updated instruction
                 self.start_chat(system_instruction)

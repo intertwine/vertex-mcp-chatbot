@@ -90,7 +90,7 @@ To use MCP features, create an `mcp_config.json` file in the project root. See t
 
 ### Scrollable Content
 
-When responses or conversation history are too long for your terminal, the chatbot automatically switches to a scrollable view:
+When responses or content are too long for your terminal, the chatbot automatically switches to a scrollable view:
 
 **Navigation Controls:**
 - **↑/↓** or **j/k** - Scroll up/down line by line
@@ -100,7 +100,12 @@ When responses or conversation history are too long for your terminal, the chatb
 
 **Features:**
 - Automatically detects when content exceeds terminal height
-- Works for both LLM responses and `/history` command
+- Works for:
+  - LLM responses
+  - `/history` command
+  - `/mcp tools` listings
+  - `/mcp resources` listings
+  - `/mcp prompts` listings
 - Preserves all markdown formatting and styling
 - Short content displays normally (no change in experience)
 

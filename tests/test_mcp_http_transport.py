@@ -79,7 +79,9 @@ class TestHTTPTransport:
             # Mock session
             mock_session = AsyncMock()
             mock_session.initialize = AsyncMock()
-            mock_session.list_tools = AsyncMock(return_value=create_mock_list_tools_result([]))
+            mock_session.list_tools = AsyncMock(
+                return_value=create_mock_list_tools_result([])
+            )
 
             with patch("src.mcp_manager.ClientSession") as mock_client_session:
                 mock_session_context = AsyncMock()
@@ -93,9 +95,9 @@ class TestHTTPTransport:
         # Create a hybrid handler that uses create_async_run_mock for known coroutines
         # and executes test-specific logic for connect_server
         base_mock = create_async_run_mock()
-        
+
         def hybrid_handler(coro):
-            if asyncio.iscoroutine(coro) and coro.cr_code.co_name == 'connect_server':
+            if asyncio.iscoroutine(coro) and coro.cr_code.co_name == "connect_server":
                 # For connect_server, run our test-specific logic
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
@@ -107,7 +109,7 @@ class TestHTTPTransport:
             else:
                 # For other coroutines (like _get_tools_async), use the base mock
                 return base_mock(coro)
-        
+
         mock_run.side_effect = hybrid_handler
 
         manager.connect_server_sync("test-http")
@@ -121,7 +123,9 @@ class TestHTTPTransport:
 
     @patch("src.mcp_manager.asyncio.run")
     @patch("src.mcp_manager.streamablehttp_client")
-    def test_connect_http_server_with_auth(self, mock_http_client, mock_run, mock_config):
+    def test_connect_http_server_with_auth(
+        self, mock_http_client, mock_run, mock_config
+    ):
         """Test HTTP server connection with authentication."""
         manager = MCPManager(mock_config)
 
@@ -142,7 +146,9 @@ class TestHTTPTransport:
             # Mock session
             mock_session = AsyncMock()
             mock_session.initialize = AsyncMock()
-            mock_session.list_tools = AsyncMock(return_value=create_mock_list_tools_result([]))
+            mock_session.list_tools = AsyncMock(
+                return_value=create_mock_list_tools_result([])
+            )
 
             with patch("src.mcp_manager.ClientSession") as mock_client_session:
                 mock_session_context = AsyncMock()
@@ -156,7 +162,7 @@ class TestHTTPTransport:
 
                     # Execute the actual coroutine
                     result = await coro
-                    
+
                     # Verify auth was created
                     mock_basic_auth.assert_called_once_with("user", "pass")
 
@@ -164,15 +170,15 @@ class TestHTTPTransport:
                     mock_http_client.assert_called_once_with(
                         "http://localhost:8082/mcp", headers={}, auth=mock_auth
                     )
-                    
+
                     return result
 
         # Create a hybrid handler that uses create_async_run_mock for known coroutines
         # and executes test-specific logic for connect_server
         base_mock = create_async_run_mock()
-        
+
         def hybrid_handler(coro):
-            if asyncio.iscoroutine(coro) and coro.cr_code.co_name == 'connect_server':
+            if asyncio.iscoroutine(coro) and coro.cr_code.co_name == "connect_server":
                 # For connect_server, run our test-specific logic
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
@@ -184,7 +190,7 @@ class TestHTTPTransport:
             else:
                 # For other coroutines (like _get_tools_async), use the base mock
                 return base_mock(coro)
-        
+
         mock_run.side_effect = hybrid_handler
 
         manager.connect_server_sync("test-auth-http")
@@ -216,7 +222,7 @@ class TestHTTPTransport:
             # Mark server as active for test
             manager._active_servers["test-http"] = mock_config.servers[0]
             manager.connect_server_sync("test-http")
-            
+
             # Verify server was processed successfully
             assert "test-http" in manager._active_servers
 
@@ -238,14 +244,18 @@ class TestSSETransport:
             mock_write = AsyncMock()
 
             mock_sse_context = AsyncMock()
-            mock_sse_context.__aenter__ = AsyncMock(return_value=(mock_read, mock_write))
+            mock_sse_context.__aenter__ = AsyncMock(
+                return_value=(mock_read, mock_write)
+            )
             mock_sse_context.__aexit__ = AsyncMock(return_value=None)
             mock_sse_client.return_value = mock_sse_context
 
             # Mock session
             mock_session = AsyncMock()
             mock_session.initialize = AsyncMock()
-            mock_session.list_tools = AsyncMock(return_value=create_mock_list_tools_result([]))
+            mock_session.list_tools = AsyncMock(
+                return_value=create_mock_list_tools_result([])
+            )
 
             with patch("src.mcp_manager.ClientSession") as mock_client_session:
                 mock_session_context = AsyncMock()
@@ -269,9 +279,9 @@ class TestSSETransport:
         # Create a hybrid handler that uses create_async_run_mock for known coroutines
         # and executes test-specific logic for connect_server
         base_mock = create_async_run_mock()
-        
+
         def hybrid_handler(coro):
-            if asyncio.iscoroutine(coro) and coro.cr_code.co_name == 'connect_server':
+            if asyncio.iscoroutine(coro) and coro.cr_code.co_name == "connect_server":
                 # For connect_server, run our test-specific logic
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
@@ -283,7 +293,7 @@ class TestSSETransport:
             else:
                 # For other coroutines (like _get_tools_async), use the base mock
                 return base_mock(coro)
-        
+
         mock_run.side_effect = hybrid_handler
 
         manager.connect_server_sync("test-sse")
@@ -326,7 +336,9 @@ class TestHTTPOperations:
 
         # Mock the session creation
         mock_session = AsyncMock()
-        mock_session.list_tools = AsyncMock(return_value=create_mock_list_tools_result([
+        mock_session.list_tools = AsyncMock(
+            return_value=create_mock_list_tools_result(
+                [
                     {
                         "name": "calculator",
                         "description": "Perform calculations",
@@ -335,7 +347,9 @@ class TestHTTPOperations:
                             "properties": {"expression": {"type": "string"}},
                         },
                     }
-                ]))
+                ]
+            )
+        )
 
         with patch("src.mcp_manager.ClientSession") as mock_client_session:
             with patch("src.mcp_manager.streamablehttp_client") as mock_http_client:
@@ -343,14 +357,14 @@ class TestHTTPOperations:
                 mock_read = AsyncMock()
                 mock_write = AsyncMock()
                 mock_get_session_id = Mock(return_value="test-session")
-                
+
                 mock_http_context = AsyncMock()
                 mock_http_context.__aenter__ = AsyncMock(
                     return_value=(mock_read, mock_write, mock_get_session_id)
                 )
                 mock_http_context.__aexit__ = AsyncMock(return_value=None)
                 mock_http_client.return_value = mock_http_context
-                
+
                 # Mock session context
                 mock_session_context = AsyncMock()
                 mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
@@ -385,14 +399,14 @@ class TestHTTPOperations:
                 mock_read = AsyncMock()
                 mock_write = AsyncMock()
                 mock_get_session_id = Mock(return_value="test-session")
-                
+
                 mock_http_context = AsyncMock()
                 mock_http_context.__aenter__ = AsyncMock(
                     return_value=(mock_read, mock_write, mock_get_session_id)
                 )
                 mock_http_context.__aexit__ = AsyncMock(return_value=None)
                 mock_http_client.return_value = mock_http_context
-                
+
                 # Mock session context
                 mock_session_context = AsyncMock()
                 mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)

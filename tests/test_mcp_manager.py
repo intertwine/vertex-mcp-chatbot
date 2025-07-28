@@ -14,7 +14,10 @@ from tests.mock_mcp_types import (
 from tests.test_async_utils import create_async_run_mock
 
 # Suppress runtime warnings about unawaited coroutines in this test module
-pytestmark = pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:coroutine.*was never awaited:RuntimeWarning"
+)
+
 
 @pytest.fixture
 def mock_config():
@@ -44,7 +47,9 @@ def mock_client_session():
     session = AsyncMock()
     session.initialize = AsyncMock()
     session.list_tools = AsyncMock(return_value=create_mock_list_tools_result([]))
-    session.list_resources = AsyncMock(return_value=create_mock_list_resources_result([]))
+    session.list_resources = AsyncMock(
+        return_value=create_mock_list_resources_result([])
+    )
     session.list_prompts = AsyncMock(return_value=create_mock_list_prompts_result([]))
     session.call_tool = AsyncMock()
     session.read_resource = AsyncMock()
@@ -82,7 +87,7 @@ class TestMCPManager:
 
         await manager.initialize()
         assert manager._initialized is True
-        
+
         # In simplified architecture, _exit_stack is not used
         # Test that calling initialize again is idempotent
         await manager.initialize()
@@ -117,30 +122,36 @@ class TestMCPManager:
             # Mock stdio client context
             mock_read = AsyncMock()
             mock_write = AsyncMock()
-            
+
             mock_stdio_context = AsyncMock()
-            mock_stdio_context.__aenter__ = AsyncMock(return_value=(mock_read, mock_write))
+            mock_stdio_context.__aenter__ = AsyncMock(
+                return_value=(mock_read, mock_write)
+            )
             mock_stdio_context.__aexit__ = AsyncMock(return_value=None)
             mock_stdio_client.return_value = mock_stdio_context
-            
+
             # Mock session
             mock_session = AsyncMock()
             mock_session.initialize = AsyncMock()
-            mock_session.list_tools = AsyncMock(return_value=create_mock_list_tools_result([]))
-            
+            mock_session.list_tools = AsyncMock(
+                return_value=create_mock_list_tools_result([])
+            )
+
             with patch("src.mcp_manager.ClientSession") as mock_client_session:
                 mock_session_context = AsyncMock()
                 mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
                 mock_session_context.__aexit__ = AsyncMock(return_value=None)
                 mock_client_session.return_value = mock_session_context
-                
+
                 # Execute the actual coroutine
                 return await coro
-        
-        mock_run.side_effect = lambda coro: asyncio.get_event_loop().run_until_complete(mock_async_run(coro))
-        
+
+        mock_run.side_effect = lambda coro: asyncio.get_event_loop().run_until_complete(
+            mock_async_run(coro)
+        )
+
         manager.connect_server_sync("test-stdio")
-        
+
         # Verify server is tracked
         assert "test-stdio" in manager._sessions
         assert "test-stdio" in manager._active_servers
@@ -162,7 +173,9 @@ class TestMCPManager:
             await manager.connect_server("nonexistent")
 
     @patch("src.mcp_manager.asyncio.run")
-    def test_connect_already_connected(self, mock_run, mock_config, mock_client_session):
+    def test_connect_already_connected(
+        self, mock_run, mock_config, mock_client_session
+    ):
         """Test connecting to an already connected server."""
         manager = MCPManager(mock_config)
         # Mark server as already active
@@ -223,22 +236,28 @@ class TestMCPManager:
             with patch("src.mcp_manager.stdio_client") as mock_stdio:
                 # Setup stdio client
                 mock_stdio_context = AsyncMock()
-                mock_stdio_context.__aenter__ = AsyncMock(return_value=(AsyncMock(), AsyncMock()))
+                mock_stdio_context.__aenter__ = AsyncMock(
+                    return_value=(AsyncMock(), AsyncMock())
+                )
                 mock_stdio_context.__aexit__ = AsyncMock(return_value=None)
                 mock_stdio.return_value = mock_stdio_context
-                
+
                 # Setup session
                 mock_session = AsyncMock()
-                mock_session.list_tools = AsyncMock(return_value=create_mock_list_tools_result([
-                    {"name": "tool1", "description": "Test tool 1"},
-                    {"name": "tool2", "description": "Test tool 2"},
-                ]))
-                
+                mock_session.list_tools = AsyncMock(
+                    return_value=create_mock_list_tools_result(
+                        [
+                            {"name": "tool1", "description": "Test tool 1"},
+                            {"name": "tool2", "description": "Test tool 2"},
+                        ]
+                    )
+                )
+
                 mock_session_context = AsyncMock()
                 mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
                 mock_session_context.__aexit__ = AsyncMock(return_value=None)
                 mock_client_class.return_value = mock_session_context
-                
+
                 tools = await manager.get_tools("test-stdio")
 
         assert len(tools) == 2
@@ -251,33 +270,51 @@ class TestMCPManager:
         manager = MCPManager(mock_config)
 
         # Mark two servers as active
-        manager._active_servers["server1"] = {"name": "server1", "transport": "stdio", "command": ["node", "s1.js"]}
-        manager._active_servers["server2"] = {"name": "server2", "transport": "stdio", "command": ["node", "s2.js"]}
+        manager._active_servers["server1"] = {
+            "name": "server1",
+            "transport": "stdio",
+            "command": ["node", "s1.js"],
+        }
+        manager._active_servers["server2"] = {
+            "name": "server2",
+            "transport": "stdio",
+            "command": ["node", "s2.js"],
+        }
 
         call_count = 0
         with patch("src.mcp_manager.ClientSession") as mock_client_class:
             with patch("src.mcp_manager.stdio_client") as mock_stdio:
                 # Setup stdio transport
-                mock_stdio.return_value.__aenter__ = AsyncMock(return_value=(AsyncMock(), AsyncMock()))
+                mock_stdio.return_value.__aenter__ = AsyncMock(
+                    return_value=(AsyncMock(), AsyncMock())
+                )
                 mock_stdio.return_value.__aexit__ = AsyncMock(return_value=None)
-                
+
                 # Create different sessions for each server
                 def create_session(*args, **kwargs):
                     nonlocal call_count
                     session = AsyncMock()
                     if call_count == 0:
-                        session.list_tools = AsyncMock(return_value=create_mock_list_tools_result([{"name": "tool1", "description": "Tool from server 1"}]))
+                        session.list_tools = AsyncMock(
+                            return_value=create_mock_list_tools_result(
+                                [{"name": "tool1", "description": "Tool from server 1"}]
+                            )
+                        )
                     else:
-                        session.list_tools = AsyncMock(return_value=create_mock_list_tools_result([{"name": "tool2", "description": "Tool from server 2"}]))
+                        session.list_tools = AsyncMock(
+                            return_value=create_mock_list_tools_result(
+                                [{"name": "tool2", "description": "Tool from server 2"}]
+                            )
+                        )
                     call_count += 1
-                    
+
                     context = AsyncMock()
                     context.__aenter__ = AsyncMock(return_value=session)
                     context.__aexit__ = AsyncMock(return_value=None)
                     return context
-                
+
                 mock_client_class.side_effect = create_session
-                
+
                 tools = await manager.get_tools()
 
         assert len(tools) == 2
@@ -306,20 +343,24 @@ class TestMCPManager:
         with patch("src.mcp_manager.ClientSession") as mock_client_class:
             with patch("src.mcp_manager.stdio_client") as mock_stdio:
                 # Setup stdio client
-                mock_stdio.return_value.__aenter__ = AsyncMock(return_value=(AsyncMock(), AsyncMock()))
+                mock_stdio.return_value.__aenter__ = AsyncMock(
+                    return_value=(AsyncMock(), AsyncMock())
+                )
                 mock_stdio.return_value.__aexit__ = AsyncMock(return_value=None)
-                
+
                 # Setup session
                 mock_session = AsyncMock()
-                mock_session.list_resources = AsyncMock(return_value=create_mock_list_resources_result([
-                    {"uri": "resource://test", "name": "Test Resource"}
-                ]))
-                
+                mock_session.list_resources = AsyncMock(
+                    return_value=create_mock_list_resources_result(
+                        [{"uri": "resource://test", "name": "Test Resource"}]
+                    )
+                )
+
                 mock_session_context = AsyncMock()
                 mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
                 mock_session_context.__aexit__ = AsyncMock(return_value=None)
                 mock_client_class.return_value = mock_session_context
-                
+
                 resources = await manager.get_resources("test-stdio")
 
         assert len(resources) == 1
@@ -335,20 +376,24 @@ class TestMCPManager:
         with patch("src.mcp_manager.ClientSession") as mock_client_class:
             with patch("src.mcp_manager.stdio_client") as mock_stdio:
                 # Setup stdio client
-                mock_stdio.return_value.__aenter__ = AsyncMock(return_value=(AsyncMock(), AsyncMock()))
+                mock_stdio.return_value.__aenter__ = AsyncMock(
+                    return_value=(AsyncMock(), AsyncMock())
+                )
                 mock_stdio.return_value.__aexit__ = AsyncMock(return_value=None)
-                
+
                 # Setup session
                 mock_session = AsyncMock()
-                mock_session.list_prompts = AsyncMock(return_value=create_mock_list_prompts_result([
-                    {"name": "test-prompt", "description": "A test prompt"}
-                ]))
-                
+                mock_session.list_prompts = AsyncMock(
+                    return_value=create_mock_list_prompts_result(
+                        [{"name": "test-prompt", "description": "A test prompt"}]
+                    )
+                )
+
                 mock_session_context = AsyncMock()
                 mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
                 mock_session_context.__aexit__ = AsyncMock(return_value=None)
                 mock_client_class.return_value = mock_session_context
-                
+
                 prompts = await manager.get_prompts("test-stdio")
 
         assert len(prompts) == 1
@@ -364,21 +409,25 @@ class TestMCPManager:
         with patch("src.mcp_manager.ClientSession") as mock_client_class:
             with patch("src.mcp_manager.stdio_client") as mock_stdio:
                 # Setup stdio client
-                mock_stdio.return_value.__aenter__ = AsyncMock(return_value=(AsyncMock(), AsyncMock()))
+                mock_stdio.return_value.__aenter__ = AsyncMock(
+                    return_value=(AsyncMock(), AsyncMock())
+                )
                 mock_stdio.return_value.__aexit__ = AsyncMock(return_value=None)
-                
+
                 # Setup session
                 mock_session = AsyncMock()
-                mock_session.call_tool = AsyncMock(return_value={
-                    "content": [{"type": "text", "text": "Tool result"}]
-                })
-                
+                mock_session.call_tool = AsyncMock(
+                    return_value={"content": [{"type": "text", "text": "Tool result"}]}
+                )
+
                 mock_session_context = AsyncMock()
                 mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
                 mock_session_context.__aexit__ = AsyncMock(return_value=None)
                 mock_client_class.return_value = mock_session_context
-                
-                result = await manager.call_tool("test-stdio", "tool1", {"arg": "value"})
+
+                result = await manager.call_tool(
+                    "test-stdio", "tool1", {"arg": "value"}
+                )
 
         assert result["content"][0]["text"] == "Tool result"
         mock_session.call_tool.assert_called_once_with(
@@ -395,20 +444,24 @@ class TestMCPManager:
         with patch("src.mcp_manager.ClientSession") as mock_client_class:
             with patch("src.mcp_manager.stdio_client") as mock_stdio:
                 # Setup stdio client
-                mock_stdio.return_value.__aenter__ = AsyncMock(return_value=(AsyncMock(), AsyncMock()))
+                mock_stdio.return_value.__aenter__ = AsyncMock(
+                    return_value=(AsyncMock(), AsyncMock())
+                )
                 mock_stdio.return_value.__aexit__ = AsyncMock(return_value=None)
-                
+
                 # Setup session
                 mock_session = AsyncMock()
-                mock_session.read_resource = AsyncMock(return_value={
-                    "contents": [{"type": "text", "text": "Resource content"}]
-                })
-                
+                mock_session.read_resource = AsyncMock(
+                    return_value={
+                        "contents": [{"type": "text", "text": "Resource content"}]
+                    }
+                )
+
                 mock_session_context = AsyncMock()
                 mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
                 mock_session_context.__aexit__ = AsyncMock(return_value=None)
                 mock_client_class.return_value = mock_session_context
-                
+
                 result = await manager.read_resource("test-stdio", "resource://test")
 
         assert result["contents"][0]["text"] == "Resource content"

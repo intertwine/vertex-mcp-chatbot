@@ -15,18 +15,18 @@ def main():
 Examples:
   %(prog)s                     # Start with default model (gemini-2.5-flash)
   %(prog)s --model gemini-1.5-pro  # Use Gemini Pro model
-        """
+        """,
     )
-    
+
     parser.add_argument(
         "--model",
         type=str,
         default=None,
-        help="Gemini model to use (default: gemini-2.5-flash)"
+        help="Gemini model to use (default: gemini-2.5-flash)",
     )
-    
+
     args = parser.parse_args()
-    
+
     try:
         chatbot = GeminiChatbot(model_name=args.model)
         chatbot.run()

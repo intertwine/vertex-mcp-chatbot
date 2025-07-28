@@ -253,6 +253,56 @@ class GeminiChatbot:
             self.console.print("[dim]Displaying content directly:[/dim]\n")
             self.console.print(rendered_content)
 
+    def display_content(self, content: str, title: str, use_panel: bool = False):
+        """Display content with automatic scrolling for long output.
+
+        Args:
+            content: The content to display
+            title: Title for the content (used in scrollable view)
+            use_panel: Whether to wrap content in a panel
+        """
+        if not content:
+            self.console.print("[dim]No content to display[/dim]")
+            return
+
+        try:
+            # First, render the content to measure its height
+            temp_console = Console(file=StringIO(), width=self.console.size.width)
+
+            if use_panel:
+                panel = Panel(
+                    content,
+                    title=f"[bold]{title}[/bold]",
+                    border_style="blue",
+                    padding=(1, 2),
+                )
+                temp_console.print(panel)
+            else:
+                temp_console.print(content)
+
+            rendered_content = temp_console.file.getvalue()
+
+            # Count the number of lines in the rendered content
+            content_lines = rendered_content.split("\n")
+            terminal_height = self.console.size.height
+
+            # If content fits in terminal, display normally
+            if len(content_lines) <= terminal_height - 3:  # Leave space for prompt
+                if use_panel:
+                    self.console.print(panel)
+                else:
+                    self.console.print(content)
+                self.console.print()
+            else:
+                # Use scrollable display for long content
+                self._display_scrollable_content(rendered_content, title)
+
+        except Exception as e:
+            # Fallback to simple printing
+            logger.debug(f"Error in display_content: {e}")
+            self.console.print(content)
+            self.console.print()
+
     def display_help(self):
         """Display help information."""
         help_text = """
@@ -494,20 +544,21 @@ class GeminiChatbot:
                     tools_by_name[tool_name] = []
                 tools_by_name[tool_name].append(tool)
 
-            self.console.print("\n[bold]MCP Tools:[/bold]")
+            # Build content as a string
+            content_lines = []
 
             # Show each tool, indicating server conflicts
             for tool_name, tool_instances in sorted(tools_by_name.items()):
                 if len(tool_instances) == 1:
                     # Single server provides this tool
                     tool = tool_instances[0]
-                    self.console.print(f"\n• {tool_name} (from {tool['server']})")
-                    self.console.print(
+                    content_lines.append(f"\n• {tool_name} (from {tool['server']})")
+                    content_lines.append(
                         f"  Description: {tool.get('description', 'No description')}"
                     )
                 else:
                     # Multiple servers provide this tool
-                    self.console.print(
+                    content_lines.append(
                         f"\n• {tool_name} [yellow](available from multiple servers)[/yellow]"
                     )
 
@@ -529,16 +580,18 @@ class GeminiChatbot:
                             else ""
                         )
                         prefix = "  → " if i == 0 else "    "
-                        self.console.print(
+                        content_lines.append(
                             f"{prefix}{tool['server']}{priority_text}: {tool.get('description', 'No description')}"
                         )
 
                     if sorted_instances:
-                        self.console.print(
+                        content_lines.append(
                             f"  [dim]Will use: {sorted_instances[0]['server']}[/dim]"
                         )
 
-            self.console.print()
+            # Display using the new method
+            content = "\n".join(content_lines)
+            self.display_content(content, "MCP Tools")
 
         except Exception as e:
             self.console.print(f"[red]❌ Failed to list tools: {e}[/red]")
@@ -563,11 +616,12 @@ class GeminiChatbot:
                 )
                 return
 
-            self.console.print("\n[bold]MCP Resources:[/bold]")
+            # Build content as a string
+            content_lines = []
 
             # Show static resources
             if resources:
-                self.console.print("\n[cyan]Static Resources:[/cyan]")
+                content_lines.append("\n[cyan]Static Resources:[/cyan]")
                 for resource in resources:
                     server = resource.get("server", "unknown")
                     name = resource.get("name", "Unnamed")
@@ -575,14 +629,14 @@ class GeminiChatbot:
                     desc = resource.get("description", "No description")
                     mime = resource.get("mimeType", "unknown")
 
-                    self.console.print(f"\n• {name} (from {server})")
-                    self.console.print(f"  URI: {uri}")
-                    self.console.print(f"  Type: {mime}")
-                    self.console.print(f"  Description: {desc}")
+                    content_lines.append(f"\n• {name} (from {server})")
+                    content_lines.append(f"  URI: {uri}")
+                    content_lines.append(f"  Type: {mime}")
+                    content_lines.append(f"  Description: {desc}")
 
             # Show resource templates
             if templates:
-                self.console.print("\n[cyan]Resource Templates:[/cyan]")
+                content_lines.append("\n[cyan]Resource Templates:[/cyan]")
                 for template in templates:
                     server = template.get("server", "unknown")
                     name = template.get("name", "Unnamed")
@@ -590,12 +644,14 @@ class GeminiChatbot:
                     desc = template.get("description", "No description")
                     mime = template.get("mimeType", "unknown")
 
-                    self.console.print(f"\n• {name} (from {server})")
-                    self.console.print(f"  URI Template: {uri_template}")
-                    self.console.print(f"  Type: {mime}")
-                    self.console.print(f"  Description: {desc}")
+                    content_lines.append(f"\n• {name} (from {server})")
+                    content_lines.append(f"  URI Template: {uri_template}")
+                    content_lines.append(f"  Type: {mime}")
+                    content_lines.append(f"  Description: {desc}")
 
-            self.console.print()
+            # Display using the new method
+            content = "\n".join(content_lines)
+            self.display_content(content, "MCP Resources")
 
         except Exception as e:
             self.console.print(f"[red]❌ Failed to list resources: {e}[/red]")
@@ -618,25 +674,30 @@ class GeminiChatbot:
                 )
                 return
 
-            self.console.print("\n[bold]MCP Prompt Templates:[/bold]")
+            # Build content as a string
+            content_lines = []
+
             for prompt in prompts:
                 server = prompt.get("server", "unknown")
                 name = prompt.get("name", "Unnamed")
                 desc = prompt.get("description", "No description")
                 args = prompt.get("arguments", [])
 
-                self.console.print(f"\n• {name} (from {server})")
-                self.console.print(f"  Description: {desc}")
+                content_lines.append(f"\n• {name} (from {server})")
+                content_lines.append(f"  Description: {desc}")
 
                 if args:
-                    self.console.print("  Arguments:")
+                    content_lines.append("  Arguments:")
                     for arg in args:
                         arg_name = arg.get("name", "unnamed")
                         arg_desc = arg.get("description", "")
                         required = arg.get("required", False)
                         req_text = " [required]" if required else " [optional]"
-                        self.console.print(f"    - {arg_name}{req_text}: {arg_desc}")
-            self.console.print()
+                        content_lines.append(f"    - {arg_name}{req_text}: {arg_desc}")
+
+            # Display using the new method
+            content = "\n".join(content_lines)
+            self.display_content(content, "MCP Prompt Templates")
 
         except Exception as e:
             self.console.print(f"[red]❌ Failed to list prompts: {e}[/red]")

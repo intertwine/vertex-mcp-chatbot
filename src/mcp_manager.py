@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 class MCPManagerError(Exception):
     """Exception raised for MCP manager errors."""
+
     pass
 
 
@@ -74,17 +75,19 @@ class MCPManager:
         server_config = self.config.get_server(server_name)
         if not server_config:
             raise MCPManagerError(f"Server '{server_name}' not found in configuration")
-        
+
         # Use retry logic
         self._connect_with_retry_sync(server_name, server_config)
 
-    def _connect_with_retry_sync(self, server_name: str, server_config: Dict[str, Any]) -> None:
+    def _connect_with_retry_sync(
+        self, server_name: str, server_config: Dict[str, Any]
+    ) -> None:
         """Connect with retry logic (synchronous version)."""
         retry_config = self._get_retry_config(server_config)
         max_attempts = retry_config["max_attempts"]
-        
+
         last_error = None
-        
+
         for attempt in range(max_attempts):
             try:
                 # Log attempt
@@ -92,14 +95,14 @@ class MCPManager:
                     logger.info(
                         f"Connection attempt {attempt + 1}/{max_attempts} for {server_name}"
                     )
-                
+
                 # Mark as active
                 self._active_servers[server_name] = server_config
                 self._sessions[server_name] = True
-                
+
                 # Test connection by getting tools
                 asyncio.run(self._get_tools_async(server_name))
-                
+
                 # Success!
                 if attempt > 0:
                     logger.info(
@@ -107,18 +110,18 @@ class MCPManager:
                     )
                 logger.info(f"Server '{server_name}' connected successfully")
                 return
-                
+
             except Exception as e:
                 last_error = e
-                
+
                 # Remove from active servers
                 self._active_servers.pop(server_name, None)
                 self._sessions.pop(server_name, None)
-                
+
                 # Don't retry if this is the last attempt
                 if attempt >= max_attempts - 1:
                     break
-                
+
                 # Calculate backoff delay
                 delay = self._calculate_backoff_delay(
                     attempt,
@@ -127,16 +130,17 @@ class MCPManager:
                     retry_config["max_delay"],
                     retry_config["jitter"],
                 )
-                
+
                 logger.warning(
                     f"Connection attempt {attempt + 1}/{max_attempts} failed for "
                     f"{server_name}: {e}. Retrying in {delay:.1f}s..."
                 )
-                
+
                 # Wait before retry
                 import time
+
                 time.sleep(delay)
-        
+
         # All attempts failed
         raise MCPManagerError(
             f"Failed to connect to server '{server_name}' after {max_attempts} "
@@ -189,22 +193,22 @@ class MCPManager:
             server_params = StdioServerParameters(
                 command=command[0], args=command[1:] if len(command) > 1 else None
             )
-            
+
             async with stdio_client(server_params) as (read, write):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
                     yield session
-        
+
         elif transport == "http":
             if not HTTP_TRANSPORT_AVAILABLE:
                 raise MCPManagerError(
                     "HTTP transport requires httpx. Install with: pip install httpx httpx-sse"
                 )
-            
+
             url = server_config["url"]
             headers = server_config.get("headers", {})
             auth = None
-            
+
             # Handle authentication
             auth_config = server_config.get("auth")
             if auth_config:
@@ -221,22 +225,26 @@ class MCPManager:
                         headers = headers.copy()
                         headers["Authorization"] = f"Bearer {token['access_token']}"
                         self._oauth_tokens[server_name] = token
-            
-            async with streamablehttp_client(url, headers=headers, auth=auth) as (read, write, _):
+
+            async with streamablehttp_client(url, headers=headers, auth=auth) as (
+                read,
+                write,
+                _,
+            ):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
                     yield session
-        
+
         elif transport == "sse":
             if not HTTP_TRANSPORT_AVAILABLE:
                 raise MCPManagerError(
                     "SSE transport requires httpx. Install with: pip install httpx httpx-sse"
                 )
-            
+
             url = server_config["url"]
             headers = server_config.get("headers")
             auth = None
-            
+
             # Handle authentication (same as HTTP)
             auth_config = server_config.get("auth")
             if auth_config:
@@ -246,16 +254,18 @@ class MCPManager:
                     password = auth_config.get("password")
                     if username and password:
                         auth = httpx.BasicAuth(username, password)
-            
+
             async with sse_client(url, headers=headers, auth=auth) as (read, write):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
                     yield session
-        
+
         else:
             raise MCPManagerError(f"Unknown transport type: {transport}")
 
-    async def _get_tools_async(self, server_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def _get_tools_async(
+        self, server_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Get available tools from server(s).
 
         Args:
@@ -267,15 +277,15 @@ class MCPManager:
         if server_name:
             async with self._create_session(server_name) as session:
                 result = await session.list_tools()
-                tools = result.tools if hasattr(result, 'tools') else []
-                
+                tools = result.tools if hasattr(result, "tools") else []
+
                 tool_dicts = []
                 for tool in tools:
                     tool_dict = {
                         "name": tool.name,
                         "description": tool.description or "",
                         "inputSchema": tool.inputSchema,
-                        "server": server_name
+                        "server": server_name,
                     }
                     tool_dicts.append(tool_dict)
                 return tool_dicts
@@ -290,7 +300,9 @@ class MCPManager:
                     logger.warning(f"Failed to get tools from {server_name}: {e}")
             return all_tools
 
-    async def _get_resources_async(self, server_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def _get_resources_async(
+        self, server_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Get available resources from server(s).
 
         Args:
@@ -303,9 +315,9 @@ class MCPManager:
             async with self._create_session(server_name) as session:
                 result = await session.list_resources()
                 logger.debug(f"Resource result from {server_name}: {result}")
-                resources = result.resources if hasattr(result, 'resources') else []
+                resources = result.resources if hasattr(result, "resources") else []
                 logger.debug(f"Resources extracted: {len(resources)} resources")
-                
+
                 resource_dicts = []
                 for resource in resources:
                     logger.debug(f"Processing resource: {resource}")
@@ -314,10 +326,12 @@ class MCPManager:
                         "name": resource.name or "",
                         "description": resource.description or "",
                         "mimeType": resource.mimeType or "application/octet-stream",
-                        "server": server_name
+                        "server": server_name,
                     }
                     resource_dicts.append(resource_dict)
-                logger.debug(f"Returning {len(resource_dicts)} resources from {server_name}")
+                logger.debug(
+                    f"Returning {len(resource_dicts)} resources from {server_name}"
+                )
                 return resource_dicts
         else:
             # Get resources from all active servers
@@ -330,7 +344,9 @@ class MCPManager:
                     logger.warning(f"Failed to get resources from {server_name}: {e}")
             return all_resources
 
-    async def _get_prompts_async(self, server_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def _get_prompts_async(
+        self, server_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Get available prompts from server(s).
 
         Args:
@@ -342,8 +358,8 @@ class MCPManager:
         if server_name:
             async with self._create_session(server_name) as session:
                 result = await session.list_prompts()
-                prompts = result.prompts if hasattr(result, 'prompts') else []
-                
+                prompts = result.prompts if hasattr(result, "prompts") else []
+
                 prompt_dicts = []
                 for prompt in prompts:
                     prompt_dict = {
@@ -353,11 +369,11 @@ class MCPManager:
                             {
                                 "name": arg.name,
                                 "description": arg.description or "",
-                                "required": arg.required
+                                "required": arg.required,
                             }
                             for arg in (prompt.arguments or [])
                         ],
-                        "server": server_name
+                        "server": server_name,
                     }
                     prompt_dicts.append(prompt_dict)
                 return prompt_dicts
@@ -421,8 +437,10 @@ class MCPManager:
         """
         async with self._create_session(server_name) as session:
             return await session.get_prompt(prompt_name, arguments=arguments or {})
-    
-    async def _get_resource_templates_async(self, server_name: Optional[str] = None) -> List[Dict[str, Any]]:
+
+    async def _get_resource_templates_async(
+        self, server_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Get available resource templates from server(s).
 
         Args:
@@ -435,21 +453,35 @@ class MCPManager:
             async with self._create_session(server_name) as session:
                 result = await session.list_resource_templates()
                 logger.debug(f"Resource templates result from {server_name}: {result}")
-                templates = result.resourceTemplates if hasattr(result, 'resourceTemplates') else []
+                templates = (
+                    result.resourceTemplates
+                    if hasattr(result, "resourceTemplates")
+                    else []
+                )
                 logger.debug(f"Templates extracted: {len(templates)} templates")
-                
+
                 template_dicts = []
                 for template in templates:
                     logger.debug(f"Processing template: {template}")
                     template_dict = {
-                        "uriTemplate": str(template.uriTemplate) if hasattr(template, 'uriTemplate') else "",
+                        "uriTemplate": (
+                            str(template.uriTemplate)
+                            if hasattr(template, "uriTemplate")
+                            else ""
+                        ),
                         "name": template.name or "",
                         "description": template.description or "",
-                        "mimeType": template.mimeType or "application/octet-stream" if hasattr(template, 'mimeType') else "application/octet-stream",
-                        "server": server_name
+                        "mimeType": (
+                            template.mimeType or "application/octet-stream"
+                            if hasattr(template, "mimeType")
+                            else "application/octet-stream"
+                        ),
+                        "server": server_name,
                     }
                     template_dicts.append(template_dict)
-                logger.debug(f"Returning {len(template_dicts)} templates from {server_name}")
+                logger.debug(
+                    f"Returning {len(template_dicts)} templates from {server_name}"
+                )
                 return template_dicts
         else:
             # Get templates from all active servers
@@ -459,7 +491,9 @@ class MCPManager:
                     templates = await self._get_resource_templates_async(server_name)
                     all_templates.extend(templates)
                 except Exception as e:
-                    logger.warning(f"Failed to get resource templates from {server_name}: {e}")
+                    logger.warning(
+                        f"Failed to get resource templates from {server_name}: {e}"
+                    )
             return all_templates
 
     # Synchronous wrapper methods
@@ -498,7 +532,7 @@ class MCPManager:
     ) -> Dict[str, Any]:
         """Synchronous wrapper for get_prompt."""
         return asyncio.run(self._get_prompt_async(server_name, prompt_name, arguments))
-    
+
     def get_resource_templates_sync(
         self, server_name: Optional[str] = None
     ) -> List[Dict[str, Any]]:
@@ -539,8 +573,7 @@ class MCPManager:
 
         # Sort servers by priority (lower number = higher priority)
         sorted_servers = sorted(
-            servers_with_tool,
-            key=lambda s: priorities.get(s, float("inf"))
+            servers_with_tool, key=lambda s: priorities.get(s, float("inf"))
         )
 
         return sorted_servers[0] if sorted_servers else None
@@ -555,15 +588,15 @@ class MCPManager:
             List of server names that have the tool
         """
         servers_with_tool = []
-        
+
         # Get tools from all servers
         all_tools = await self._get_tools_async()
-        
+
         # Find unique servers that have this tool
         for tool in all_tools:
             if tool["name"] == tool_name and tool["server"] not in servers_with_tool:
                 servers_with_tool.append(tool["server"])
-        
+
         return servers_with_tool
 
     def get_server_priorities(self) -> Dict[str, int]:
@@ -636,17 +669,25 @@ class MCPManager:
             Token data if successful, None otherwise
         """
         if not OAUTH_AVAILABLE or not HTTP_TRANSPORT_AVAILABLE:
-            raise MCPManagerError("OAuth support not available. Install required dependencies.")
+            raise MCPManagerError(
+                "OAuth support not available. Install required dependencies."
+            )
 
         # Generate PKCE parameters
-        verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('utf-8').rstrip('=')
-        challenge = base64.urlsafe_b64encode(
-            hashlib.sha256(verifier.encode('utf-8')).digest()
-        ).decode('utf-8').rstrip('=')
-        
+        verifier = (
+            base64.urlsafe_b64encode(secrets.token_bytes(32))
+            .decode("utf-8")
+            .rstrip("=")
+        )
+        challenge = (
+            base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("utf-8")).digest())
+            .decode("utf-8")
+            .rstrip("=")
+        )
+
         # Generate state for CSRF protection
         state = secrets.token_urlsafe(16)
-        
+
         # Build authorization URL
         auth_params = {
             "client_id": auth_config["client_id"],
@@ -657,7 +698,7 @@ class MCPManager:
             "code_challenge": challenge,
             "code_challenge_method": "S256",
         }
-        
+
         # Create the authorization URL
         auth_url = auth_config["authorization_url"]
         if "?" in auth_url:
@@ -665,27 +706,27 @@ class MCPManager:
         else:
             auth_url += "?"
         auth_url += "&".join(f"{k}={v}" for k, v in auth_params.items())
-        
+
         # Display the URL to the user
         await self._handle_oauth_redirect(auth_url)
-        
+
         # Get the callback URL from user
         callback_url = await self._handle_oauth_callback()
-        
+
         # Parse the callback URL
         parsed = urlparse(callback_url)
         params = parse_qs(parsed.query)
-        
+
         # Verify state
         if params.get("state", [None])[0] != state:
             raise MCPManagerError("OAuth state mismatch - possible CSRF attack")
-        
+
         # Get the authorization code
         code = params.get("code", [None])[0]
         if not code:
             error = params.get("error", ["unknown"])[0]
             raise MCPManagerError(f"OAuth authorization failed: {error}")
-        
+
         # Exchange code for token
         token_data = {
             "grant_type": "authorization_code",
@@ -694,11 +735,11 @@ class MCPManager:
             "client_id": auth_config["client_id"],
             "code_verifier": verifier,
         }
-        
+
         # Add client secret if provided (confidential client)
         if "client_secret" in auth_config:
             token_data["client_secret"] = auth_config["client_secret"]
-        
+
         # Make token request
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -706,10 +747,10 @@ class MCPManager:
                 data=token_data,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
-            
+
             if response.status_code != 200:
                 raise MCPManagerError(f"Token exchange failed: {response.text}")
-            
+
             token = response.json()
             await self._save_oauth_token(server_name, token)
             return token
@@ -724,8 +765,12 @@ class MCPManager:
             None (manual handling)
         """
         if self._oauth_console:
-            self._oauth_console.print(f"\n[bold blue]OAuth Authorization Required[/bold blue]")
-            self._oauth_console.print(f"Please visit this URL to authorize the application:")
+            self._oauth_console.print(
+                f"\n[bold blue]OAuth Authorization Required[/bold blue]"
+            )
+            self._oauth_console.print(
+                f"Please visit this URL to authorize the application:"
+            )
             self._oauth_console.print(f"[link]{url}[/link]\n")
         return None
 
@@ -859,7 +904,7 @@ class MCPManager:
             Delay in seconds
         """
         # Calculate exponential delay
-        delay = initial_delay * (exponential_base ** attempt)
+        delay = initial_delay * (exponential_base**attempt)
 
         # Cap at max delay
         delay = min(delay, max_delay)
@@ -872,7 +917,7 @@ class MCPManager:
         return max(delay, 0)  # Ensure non-negative
 
     # Async versions for compatibility
-    
+
     async def initialize(self) -> None:
         """Initialize the manager (no-op for compatibility)."""
         self._initialized = True
@@ -933,15 +978,15 @@ class MCPManager:
         return await self._get_prompt_async(server_name, prompt_name, arguments)
 
     # Additional async methods for compatibility
-    
+
     async def _get_tools_safe(self, session) -> Optional[Any]:
         """Compatibility method - not used in simplified version."""
         return None
-    
+
     async def _get_resources_safe(self, session) -> Optional[Any]:
         """Compatibility method - not used in simplified version."""
         return None
-    
+
     async def _get_prompts_safe(self, session) -> Optional[Any]:
         """Compatibility method - not used in simplified version."""
         return None
@@ -961,7 +1006,12 @@ class MCPManager:
                     result = await self._get_prompts_async(server_name)
                 else:
                     result = None
-                results.append((server_name, {"tools": result} if operation == "list_tools" else result))
+                results.append(
+                    (
+                        server_name,
+                        {"tools": result} if operation == "list_tools" else result,
+                    )
+                )
             except Exception as e:
                 logger.warning(f"Operation {operation} failed for {server_name}: {e}")
                 results.append((server_name, None))
@@ -978,7 +1028,9 @@ class MCPManager:
         return None
 
     # Async versions for retry (not used in simplified version)
-    
-    async def _connect_with_retry(self, server_name: str, server_config: Dict[str, Any]) -> None:
+
+    async def _connect_with_retry(
+        self, server_name: str, server_config: Dict[str, Any]
+    ) -> None:
         """Async version of retry (calls sync version)."""
         self._connect_with_retry_sync(server_name, server_config)

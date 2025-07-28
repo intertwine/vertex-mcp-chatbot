@@ -10,7 +10,7 @@ from pathlib import Path
 def run_tests(test_type="all", verbose=False, coverage=False):
     """
     Run tests with various options.
-    
+
     Args:
         test_type: Type of tests to run ("all", "unit", "integration", "specific")
         verbose: Whether to run in verbose mode
@@ -18,22 +18,24 @@ def run_tests(test_type="all", verbose=False, coverage=False):
     """
     # Base pytest command
     cmd = ["python", "-m", "pytest"]
-    
+
     # Add verbosity
     if verbose:
         cmd.append("-v")
     else:
         cmd.append("-q")
-    
+
     # Add coverage if requested
     if coverage:
-        cmd.extend([
-            "--cov=src",
-            "--cov-report=html",
-            "--cov-report=term-missing",
-            "--cov-fail-under=80"
-        ])
-    
+        cmd.extend(
+            [
+                "--cov=src",
+                "--cov-report=html",
+                "--cov-report=term-missing",
+                "--cov-fail-under=80",
+            ]
+        )
+
     # Add test selection based on type
     if test_type == "unit":
         cmd.extend(["-m", "not integration"])
@@ -43,12 +45,12 @@ def run_tests(test_type="all", verbose=False, coverage=False):
         # This will be handled by the caller passing specific test files
         pass
     # For "all", we don't add any filters
-    
+
     # Add test directory
     cmd.append("tests/")
-    
+
     print(f"Running command: {' '.join(cmd)}")
-    
+
     try:
         result = subprocess.run(cmd, check=False)
         return result.returncode
@@ -72,41 +74,25 @@ Examples:
   %(prog)s --integration            # Run only integration tests
   %(prog)s --coverage               # Run with coverage report
   %(prog)s --verbose --coverage     # Verbose output with coverage
-        """
+        """,
     )
-    
+
+    parser.add_argument("--unit", action="store_true", help="Run only unit tests")
+
     parser.add_argument(
-        "--unit",
-        action="store_true",
-        help="Run only unit tests"
+        "--integration", action="store_true", help="Run only integration tests"
     )
-    
+
     parser.add_argument(
-        "--integration",
-        action="store_true",
-        help="Run only integration tests"
+        "--coverage", action="store_true", help="Generate coverage report"
     )
-    
-    parser.add_argument(
-        "--coverage",
-        action="store_true",
-        help="Generate coverage report"
-    )
-    
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Verbose output"
-    )
-    
-    parser.add_argument(
-        "test_files",
-        nargs="*",
-        help="Specific test files to run"
-    )
-    
+
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+
+    parser.add_argument("test_files", nargs="*", help="Specific test files to run")
+
     args = parser.parse_args()
-    
+
     # Determine test type
     if args.unit:
         test_type = "unit"
@@ -119,19 +105,15 @@ Examples:
         if args.verbose:
             cmd.append("-v")
         if args.coverage:
-            cmd.extend([
-                "--cov=src",
-                "--cov-report=html",
-                "--cov-report=term-missing"
-            ])
+            cmd.extend(["--cov=src", "--cov-report=html", "--cov-report=term-missing"])
         cmd.extend(args.test_files)
-        
+
         print(f"Running command: {' '.join(cmd)}")
         result = subprocess.run(cmd, check=False)
         return result.returncode
     else:
         test_type = "all"
-    
+
     return run_tests(test_type, args.verbose, args.coverage)
 
 

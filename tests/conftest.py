@@ -145,7 +145,9 @@ def mock_mcp_session():
     session = AsyncMock()
     session.initialize = AsyncMock()
     session.list_tools = AsyncMock(return_value=create_mock_list_tools_result([]))
-    session.list_resources = AsyncMock(return_value=create_mock_list_resources_result([]))
+    session.list_resources = AsyncMock(
+        return_value=create_mock_list_resources_result([])
+    )
     session.list_prompts = AsyncMock(return_value=create_mock_list_prompts_result([]))
     session.call_tool = AsyncMock()
     session.read_resource = AsyncMock()

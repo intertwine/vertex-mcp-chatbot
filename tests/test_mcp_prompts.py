@@ -5,7 +5,10 @@ from unittest.mock import Mock, patch
 from src.chatbot import GeminiChatbot
 
 # Suppress runtime warnings about unawaited coroutines in this test module
-pytestmark = pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:coroutine.*was never awaited:RuntimeWarning"
+)
+
 
 class TestMCPPrompts:
     """Test MCP prompt template integration."""
@@ -54,15 +57,16 @@ class TestMCPPrompts:
             ]
         )
 
-        result = chatbot.process_command("/mcp prompts")
+        with patch.object(chatbot, "display_content") as mock_display:
+            result = chatbot.process_command("/mcp prompts")
 
-        assert result is True
-        # Should print header and prompts
-        assert chatbot.console.print.call_count >= 3
-        # Verify prompt details are shown
-        call_args = [str(call) for call in chatbot.console.print.call_args_list]
-        assert any("analyze_code" in str(arg) for arg in call_args)
-        assert any("Analyze code for best practices" in str(arg) for arg in call_args)
+            assert result is True
+            # Should call display_content once
+            mock_display.assert_called_once()
+            content = mock_display.call_args[0][0]
+            # Verify prompt details are in the content
+            assert "analyze_code" in content
+            assert "Analyze code for best practices" in content
 
     @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     @patch("src.chatbot.os.makedirs")
@@ -78,7 +82,9 @@ class TestMCPPrompts:
         assert result is True
         chatbot.console.print.assert_called_with("[dim]No MCP servers connected[/dim]")
 
-    @pytest.mark.filterwarnings(r"ignore:coroutine.*MCPManager\._get_tools_async.*was never awaited:RuntimeWarning")
+    @pytest.mark.filterwarnings(
+        r"ignore:coroutine.*MCPManager\._get_tools_async.*was never awaited:RuntimeWarning"
+    )
     @patch("src.chatbot.os.makedirs")
     def test_mcp_prompts_no_prompts(self, mock_makedirs):
         """Test /mcp prompts when servers have no prompts."""

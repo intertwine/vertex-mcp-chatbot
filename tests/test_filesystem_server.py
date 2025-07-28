@@ -29,7 +29,7 @@ from filesystem_server import (
     read_resource,
     analyze_directory,
     summarize_file,
-    BASE_PATH
+    BASE_PATH,
 )
 
 
@@ -52,22 +52,27 @@ class TestFilesystemServer:
         Path("test.txt").write_text("Hello, World!")
         Path("test.json").write_text('{"key": "value"}')
         Path("test.py").write_text("print('Hello')")
-        
+
         # Create subdirectory with files
         subdir = Path("test_subdir")
         subdir.mkdir(exist_ok=True)
         (subdir / "nested.txt").write_text("Nested file content")
-        
+
         # Create empty directory
         Path("test_empty_dir").mkdir(exist_ok=True)
-    
+
     def cleanup_test_files(self):
         """Clean up test files and directories."""
         import shutil
+
         # Clean up test files
         test_files = [
-            "test.txt", "test.json", "test.py", "new_file.txt", 
-            "empty.txt", "restricted.txt"
+            "test.txt",
+            "test.json",
+            "test.py",
+            "new_file.txt",
+            "empty.txt",
+            "restricted.txt",
         ]
         for file in test_files:
             try:
@@ -78,11 +83,14 @@ class TestFilesystemServer:
                     file_path.unlink()
             except (FileNotFoundError, OSError):
                 pass
-        
+
         # Clean up test directories
         test_dirs = [
-            "test_subdir", "test_empty_dir", "new_directory", 
-            "new_dir", "level1"
+            "test_subdir",
+            "test_empty_dir",
+            "new_directory",
+            "new_dir",
+            "level1",
         ]
         for dir_name in test_dirs:
             try:
@@ -159,10 +167,10 @@ class TestListFilesTool(TestFilesystemServer):
     async def test_list_files_current_directory(self):
         """Test listing files in current directory."""
         result = await list_files(".")
-        
+
         assert result["directory"] == "."
         assert result["count"] >= 3  # At least test.txt, test.json, test.py
-        
+
         # Check that files are present
         file_names = [f["name"] for f in result["files"]]
         assert "test.txt" in file_names
@@ -173,7 +181,7 @@ class TestListFilesTool(TestFilesystemServer):
     async def test_list_files_subdirectory(self):
         """Test listing files in subdirectory."""
         result = await list_files("test_subdir")
-        
+
         assert result["directory"] == "test_subdir"
         assert result["count"] == 1
         assert result["files"][0]["name"] == "nested.txt"
@@ -182,7 +190,7 @@ class TestListFilesTool(TestFilesystemServer):
     async def test_list_files_with_pattern(self):
         """Test listing files with glob pattern."""
         result = await list_files(".", "*.txt")
-        
+
         file_names = [f["name"] for f in result["files"]]
         assert "test.txt" in file_names
         assert "test.json" not in file_names
@@ -192,7 +200,7 @@ class TestListFilesTool(TestFilesystemServer):
     async def test_list_files_empty_directory(self):
         """Test listing files in empty directory."""
         result = await list_files("test_empty_dir")
-        
+
         assert result["directory"] == "test_empty_dir"
         assert result["count"] == 0
         assert result["files"] == []
@@ -264,10 +272,10 @@ class TestWriteFileTool(TestFilesystemServer):
         """Test writing a new file."""
         content = "New file content"
         result = await write_file("new_file.txt", content)
-        
+
         assert "Successfully wrote" in result
         assert "16 bytes" in result  # "New file content" is 16 bytes
-        
+
         # Verify file was created
         assert Path("new_file.txt").exists()
         assert Path("new_file.txt").read_text() == content
@@ -277,9 +285,9 @@ class TestWriteFileTool(TestFilesystemServer):
         """Test overwriting existing file."""
         content = "Overwritten content"
         result = await write_file("test.txt", content)
-        
+
         assert "Successfully wrote" in result
-        
+
         # Verify file was overwritten
         assert Path("test.txt").read_text() == content
 
@@ -288,9 +296,9 @@ class TestWriteFileTool(TestFilesystemServer):
         """Test writing file with automatic directory creation."""
         content = "Content in new directory"
         result = await write_file("new_dir/new_file.txt", content)
-        
+
         assert "Successfully wrote" in result
-        
+
         # Verify directories and file were created
         file_path = Path("new_dir") / "new_file.txt"
         assert file_path.exists()
@@ -306,7 +314,7 @@ class TestWriteFileTool(TestFilesystemServer):
     async def test_write_file_empty_content(self):
         """Test writing file with empty content."""
         result = await write_file("empty.txt", "")
-        
+
         assert "Successfully wrote 0 bytes" in result
         assert Path("empty.txt").exists()
         assert Path("empty.txt").read_text() == ""
@@ -319,7 +327,7 @@ class TestCreateDirectoryTool(TestFilesystemServer):
     async def test_create_directory_new(self):
         """Test creating a new directory."""
         result = await create_directory("new_directory")
-        
+
         assert "Successfully created" in result
         assert Path("new_directory").exists()
         assert Path("new_directory").is_dir()
@@ -328,7 +336,7 @@ class TestCreateDirectoryTool(TestFilesystemServer):
     async def test_create_directory_nested(self):
         """Test creating nested directories."""
         result = await create_directory("level1/level2/level3")
-        
+
         assert "Successfully created" in result
         nested_path = Path("level1") / "level2" / "level3"
         assert nested_path.exists()
@@ -338,7 +346,7 @@ class TestCreateDirectoryTool(TestFilesystemServer):
     async def test_create_directory_existing(self):
         """Test creating directory that already exists."""
         result = await create_directory("test_subdir")
-        
+
         assert "Successfully created" in result
         assert Path("test_subdir").exists()
 
@@ -356,52 +364,60 @@ class TestReadResource(TestFilesystemServer):
         """Test reading a file resource successfully."""
         # Note: This test will initially fail due to the bug in read_resource
         # The function calls undefined sanitize_path() and is_path_allowed()
-        with patch('filesystem_server.sanitize_path') as mock_sanitize, \
-             patch('filesystem_server.is_path_allowed') as mock_is_allowed:
-            
+        with (
+            patch("filesystem_server.sanitize_path") as mock_sanitize,
+            patch("filesystem_server.is_path_allowed") as mock_is_allowed,
+        ):
+
             mock_sanitize.return_value = "test.txt"
             mock_is_allowed.return_value = True
-            
+
             result = read_resource("test.txt")
             assert result == "Hello, World!"
 
     def test_read_resource_access_denied(self):
         """Test reading resource with access denied."""
-        with patch('filesystem_server.sanitize_path') as mock_sanitize, \
-             patch('filesystem_server.is_path_allowed') as mock_is_allowed:
-            
+        with (
+            patch("filesystem_server.sanitize_path") as mock_sanitize,
+            patch("filesystem_server.is_path_allowed") as mock_is_allowed,
+        ):
+
             mock_sanitize.return_value = "../../../etc/passwd"
             mock_is_allowed.return_value = False
-            
+
             result = read_resource("../../../etc/passwd")
             assert "Error: Access denied" in result
 
     def test_read_resource_file_not_found(self):
         """Test reading nonexistent file resource."""
-        with patch('filesystem_server.sanitize_path') as mock_sanitize, \
-             patch('filesystem_server.is_path_allowed') as mock_is_allowed:
-            
+        with (
+            patch("filesystem_server.sanitize_path") as mock_sanitize,
+            patch("filesystem_server.is_path_allowed") as mock_is_allowed,
+        ):
+
             mock_sanitize.return_value = "nonexistent.txt"
             mock_is_allowed.return_value = True
-            
+
             result = read_resource("nonexistent.txt")
             assert "Error: File not found" in result
 
     def test_read_resource_not_file(self):
         """Test reading directory as resource."""
-        with patch('filesystem_server.sanitize_path') as mock_sanitize, \
-             patch('filesystem_server.is_path_allowed') as mock_is_allowed, \
-             patch('filesystem_server.BASE_PATH') as mock_base:
-            
+        with (
+            patch("filesystem_server.sanitize_path") as mock_sanitize,
+            patch("filesystem_server.is_path_allowed") as mock_is_allowed,
+            patch("filesystem_server.BASE_PATH") as mock_base,
+        ):
+
             mock_sanitize.return_value = "subdir"
             mock_is_allowed.return_value = True
-            
+
             # Create a mock path that exists but is not a file
             mock_path = Mock()
             mock_path.exists.return_value = True
             mock_path.is_file.return_value = False
             mock_base.__truediv__.return_value = mock_path
-            
+
             result = read_resource("subdir")
             assert "Error: Not a file" in result
 
@@ -413,7 +429,7 @@ class TestPrompts(TestFilesystemServer):
     async def test_analyze_directory_prompt(self):
         """Test analyze_directory prompt template."""
         result = await analyze_directory(".")
-        
+
         assert "analyze the directory" in result
         assert "Total number of files" in result
         assert "File type distribution" in result
@@ -423,14 +439,14 @@ class TestPrompts(TestFilesystemServer):
     async def test_analyze_directory_prompt_custom_dir(self):
         """Test analyze_directory prompt with custom directory."""
         result = await analyze_directory("subdir")
-        
+
         assert "analyze the directory 'subdir'" in result
 
     @pytest.mark.asyncio
     async def test_summarize_file_prompt(self):
         """Test summarize_file prompt template."""
         result = await summarize_file("test.txt")
-        
+
         assert "read the file at 'test.txt'" in result
         assert "Maximum length: 100 words" in result
         assert "read_file tool" in result
@@ -439,7 +455,7 @@ class TestPrompts(TestFilesystemServer):
     async def test_summarize_file_prompt_custom_length(self):
         """Test summarize_file prompt with custom max length."""
         result = await summarize_file("test.txt", 50)
-        
+
         assert "Maximum length: 50 words" in result
 
 
@@ -451,7 +467,7 @@ class TestMCPServerIntegration(TestFilesystemServer):
         """Test that server has expected tools."""
         tools = await mcp.list_tools()
         tool_names = [tool.name for tool in tools]
-        
+
         expected_tools = ["list_files", "read_file", "write_file", "create_directory"]
         for tool in expected_tools:
             assert tool in tool_names
@@ -469,7 +485,7 @@ class TestMCPServerIntegration(TestFilesystemServer):
         """Test that server has expected prompts."""
         prompts = await mcp.list_prompts()
         prompt_names = [prompt.name for prompt in prompts]
-        
+
         expected_prompts = ["analyze_directory", "summarize_file"]
         for prompt in expected_prompts:
             assert prompt in prompt_names
@@ -478,11 +494,11 @@ class TestMCPServerIntegration(TestFilesystemServer):
     async def test_tool_schemas(self):
         """Test that tools have proper schemas."""
         tools = await mcp.list_tools()
-        
+
         for tool in tools:
             assert tool.name is not None
             assert tool.description is not None
-            assert hasattr(tool, 'inputSchema')
+            assert hasattr(tool, "inputSchema")
 
 
 class TestErrorHandling(TestFilesystemServer):
@@ -494,15 +510,15 @@ class TestErrorHandling(TestFilesystemServer):
         # Create a file with no read permissions (if possible)
         restricted_file = Path("restricted.txt")
         restricted_file.write_text("restricted content")
-        
+
         # Try to make it unreadable (may not work on all systems)
         try:
             restricted_file.chmod(0o000)
-            
+
             # This should raise an error
             with pytest.raises(ValueError, match="Error reading file"):
                 await read_file("restricted.txt")
-                
+
         except OSError:
             # If we can't change permissions, skip this test
             pytest.skip("Cannot modify file permissions on this system")
@@ -513,11 +529,13 @@ class TestErrorHandling(TestFilesystemServer):
             except OSError:
                 pass
 
-    @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     async def test_disk_full_simulation(self):
         """Test handling of disk full errors during write."""
         # Mock write_text to raise OSError (disk full)
-        with patch.object(Path, 'write_text', side_effect=OSError("No space left on device")):
+        with patch.object(
+            Path, "write_text", side_effect=OSError("No space left on device")
+        ):
             with pytest.raises(ValueError, match="Error writing file"):
                 await write_file("test_disk_full.txt", "content")
 

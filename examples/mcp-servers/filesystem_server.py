@@ -73,64 +73,62 @@ def is_path_allowed(path: Path) -> bool:
 async def list_files(directory: str = ".", pattern: str = "*") -> dict:
     """
     List files in a directory.
-    
+
     Args:
         directory: Directory path relative to base directory
         pattern: Glob pattern to filter files (e.g., '*.txt')
-    
+
     Returns:
         Dictionary with directory info and list of files
     """
     target_path = validate_path(directory)
     if not target_path:
         raise ValueError("Access denied: Path outside base directory")
-    
+
     if not target_path.exists():
         raise ValueError(f"Directory not found: {directory}")
-    
+
     if not target_path.is_dir():
         raise ValueError(f"Not a directory: {directory}")
-    
+
     # List files matching pattern
     files = []
     for item in target_path.glob(pattern):
         if item.is_file():
-            files.append({
-                "name": item.name,
-                "size": item.stat().st_size,
-                "modified": item.stat().st_mtime
-            })
-    
-    return {
-        "directory": str(directory),
-        "files": files,
-        "count": len(files)
-    }
+            files.append(
+                {
+                    "name": item.name,
+                    "size": item.stat().st_size,
+                    "modified": item.stat().st_mtime,
+                }
+            )
+
+    return {"directory": str(directory), "files": files, "count": len(files)}
 
 
 @mcp.tool()
 async def read_file(path: str) -> str:
     """
     Read the contents of a file.
-    
+
     Args:
         path: File path relative to base directory
-    
+
     Returns:
         File contents as string
     """
     target_path = validate_path(path)
     if not target_path:
         raise ValueError("Access denied: Path outside base directory")
-    
+
     if not target_path.exists():
         raise ValueError(f"File not found: {path}")
-    
+
     if not target_path.is_file():
         raise ValueError(f"Not a file: {path}")
-    
+
     try:
-        return target_path.read_text(encoding='utf-8')
+        return target_path.read_text(encoding="utf-8")
     except Exception as e:
         raise ValueError(f"Error reading file: {str(e)}")
 
@@ -139,25 +137,25 @@ async def read_file(path: str) -> str:
 async def write_file(path: str, content: str) -> str:
     """
     Write content to a file.
-    
+
     Args:
         path: File path relative to base directory
         content: Content to write to the file
-    
+
     Returns:
         Success message
     """
     target_path = validate_path(path)
     if not target_path:
         raise ValueError("Access denied: Path outside base directory")
-    
+
     try:
         # Create parent directories if needed
         target_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Write content
-        target_path.write_text(content, encoding='utf-8')
-        
+        target_path.write_text(content, encoding="utf-8")
+
         return f"Successfully wrote {len(content)} bytes to {path}"
     except Exception as e:
         raise ValueError(f"Error writing file: {str(e)}")
@@ -167,17 +165,17 @@ async def write_file(path: str, content: str) -> str:
 async def create_directory(path: str) -> str:
     """
     Create a new directory.
-    
+
     Args:
         path: Directory path relative to base directory
-    
+
     Returns:
         Success message
     """
     target_path = validate_path(path)
     if not target_path:
         raise ValueError("Access denied: Path outside base directory")
-    
+
     try:
         target_path.mkdir(parents=True, exist_ok=True)
         return f"Successfully created directory: {path}"
@@ -190,32 +188,32 @@ async def create_directory(path: str) -> str:
 def read_resource(path: str) -> str:
     """
     Read a file resource.
-    
+
     Args:
         path: File path relative to base directory
-    
+
     Returns:
         File contents
     """
     # For sync resource, read file directly
     safe_path = sanitize_path(path)
     full_path = BASE_PATH / safe_path
-    
+
     # Security check
     if not is_path_allowed(full_path):
         return f"Error: Access denied - path outside base directory"
-    
+
     # Check if file exists
     if not full_path.exists():
         return f"Error: File not found: {path}"
-    
+
     # Check if it's a file
     if not full_path.is_file():
         return f"Error: Not a file: {path}"
-    
+
     try:
         # Read the file
-        return full_path.read_text(encoding='utf-8')
+        return full_path.read_text(encoding="utf-8")
     except Exception as e:
         return f"Error reading file: {str(e)}"
 
@@ -225,10 +223,10 @@ def read_resource(path: str) -> str:
 async def analyze_directory(directory: str = ".") -> str:
     """
     Analyze the structure and contents of a directory.
-    
+
     Args:
         directory: Directory path to analyze
-    
+
     Returns:
         Prompt text for directory analysis
     """
@@ -246,11 +244,11 @@ Use the list_files tool to explore the directory structure."""
 async def summarize_file(file_path: str, max_length: int = 100) -> str:
     """
     Summarize the contents of a file.
-    
+
     Args:
         file_path: Path to the file to summarize
         max_length: Maximum length of summary in words
-    
+
     Returns:
         Prompt text for file summarization
     """
@@ -268,30 +266,36 @@ Use the read_file tool to access the file contents."""
 def run_with_graceful_shutdown():
     """Run the server with graceful shutdown handling."""
     import threading
+
     shutdown_event = threading.Event()
-    
+
     def signal_handler(signum, _):
         """Handle shutdown signals gracefully."""
-        signal_name = ("SIGINT" if signum == signal.SIGINT 
-                      else f"Signal {signum}")
-        print(f"\n{signal_name} received. Shutting down File System "
-              f"MCP Server gracefully...", file=sys.stderr)
+        signal_name = "SIGINT" if signum == signal.SIGINT else f"Signal {signum}"
+        print(
+            f"\n{signal_name} received. Shutting down File System "
+            f"MCP Server gracefully...",
+            file=sys.stderr,
+        )
         shutdown_event.set()
         # Force exit after a brief moment
         threading.Timer(0.1, lambda: os._exit(0)).start()
-    
+
     # Set up signal handlers
     signal.signal(signal.SIGINT, signal_handler)
-    if hasattr(signal, 'SIGTERM'):
+    if hasattr(signal, "SIGTERM"):
         signal.signal(signal.SIGTERM, signal_handler)
-    
+
     try:
         # Run the server
         mcp.run()
     except KeyboardInterrupt:
         # This should be caught by signal handler, but just in case
-        print("\nKeyboard interrupt received. Shutting down File System "
-              "MCP Server gracefully...", file=sys.stderr)
+        print(
+            "\nKeyboard interrupt received. Shutting down File System "
+            "MCP Server gracefully...",
+            file=sys.stderr,
+        )
         os._exit(0)
     except Exception as e:
         print(f"\nUnexpected error: {e}", file=sys.stderr)
@@ -303,6 +307,6 @@ if __name__ == "__main__":
     # Simple startup message without Ctrl+C instruction
     print("Starting File System MCP Server", file=sys.stderr)
     print(f"Base path: {BASE_PATH}", file=sys.stderr)
-    
+
     # Run with graceful shutdown handling
     run_with_graceful_shutdown()

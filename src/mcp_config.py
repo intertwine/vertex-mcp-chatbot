@@ -155,10 +155,10 @@ class MCPConfig:
         """
         # Handle escaped dollar signs
         value = value.replace("\\$", "\x00")  # Temporary placeholder
-        value = value.replace("$$", "\x00")   # Alternative escape syntax
+        value = value.replace("$$", "\x00")  # Alternative escape syntax
 
         # Pattern to match ${VAR_NAME} or ${VAR_NAME:-default}
-        pattern = r'\$\{([^}:]+)(?::-([^}]*))?\}'
+        pattern = r"\$\{([^}:]+)(?::-([^}]*))?\}"
 
         def replacer(match):
             var_name = match.group(1)
