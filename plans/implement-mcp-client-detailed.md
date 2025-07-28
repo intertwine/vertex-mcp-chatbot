@@ -667,5 +667,48 @@ All three increments of Phase 2 are now complete. The chatbot can:
 - Implement OAuth authentication support
 - Add connection retry logic with exponential backoff
 
+#### 2025-01-27 - Phase 3 Increment 3: OAuth Authentication Support
+**Completed:**
+- ✅ Created `tests/test_mcp_oauth.py` with 12 comprehensive tests:
+  - OAuth server connection with new authorization flow
+  - Using existing valid tokens
+  - Re-authentication when tokens expire
+  - Token storage and retrieval
+  - OAuth redirect and callback handling
+  - Configuration validation
+  - Token inclusion in requests
+- ✅ Implemented OAuth 2.0 authorization code flow in `src/mcp_manager.py`:
+  - PKCE (Proof Key for Code Exchange) support for enhanced security
+  - State parameter for CSRF protection
+  - Token storage in `.mcp_tokens/` directory
+  - Automatic token validation and refresh
+  - Support for both confidential and public clients
+  - Interactive authorization flow with URL display
+- ✅ Updated `mcp_config.json.example` with OAuth configuration examples:
+  - Full OAuth server with client credentials
+  - Public client configuration (no client secret)
+  - All required OAuth fields documented
+- ✅ Added `.mcp_tokens/` to `.gitignore` for security
+- ✅ All 176 tests passing
+- ✅ Code formatted and linted
+
+**Technical Implementation:**
+- **OAuth Flow**: Standard authorization code grant with PKCE
+- **Token Management**: File-based storage with expiration tracking
+- **Security Features**: State validation, PKCE challenge, secure token storage
+- **User Experience**: Clear prompts for authorization URL and callback
+- **Error Handling**: Comprehensive validation and error messages
+
+**Design Decisions:**
+- **PKCE by Default**: Enhanced security for all OAuth flows
+- **File-based Storage**: Simple, portable token persistence
+- **Interactive Flow**: Manual URL navigation for maximum compatibility
+- **Automatic Refresh**: Tokens checked and refreshed before use
+- **Flexible Configuration**: Supports various OAuth provider requirements
+
+**Next Steps:**
+- Add connection retry logic with exponential backoff
+- Implement token refresh flow for expired access tokens
+
 
 

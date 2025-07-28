@@ -169,6 +169,7 @@ class TestMCPPrompts:
             "[red]Prompt 'nonexistent' not found in connected servers[/red]"
         )
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     @patch("src.chatbot.os.makedirs")
     def test_find_prompt_server(self, mock_makedirs):
         """Test finding which server provides a prompt."""

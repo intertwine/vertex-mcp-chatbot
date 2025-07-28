@@ -136,7 +136,7 @@ class TestHTTPTransport:
 
         # Verify HTTP client was called with auth
         mock_http_client.assert_called_once_with(
-            "http://localhost:8082/mcp", headers=None, auth=mock_auth
+            "http://localhost:8082/mcp", headers={}, auth=mock_auth
         )
 
     @pytest.mark.asyncio

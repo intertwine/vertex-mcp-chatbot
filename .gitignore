@@ -25,6 +25,7 @@ ENV/
 .chat/
 *.log
 mcp_config.json
+.mcp_tokens/
 
 # Distribution / packaging
 dist/

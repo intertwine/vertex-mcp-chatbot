@@ -18,6 +18,22 @@ try:
 except ImportError:
     HTTP_TRANSPORT_AVAILABLE = False
 
+# Import OAuth support
+try:
+    from rich.console import Console
+    import json
+    import os
+    from datetime import datetime, timedelta
+    import webbrowser
+    from urllib.parse import urlparse, parse_qs
+    import secrets
+    import base64
+    import hashlib
+
+    OAUTH_AVAILABLE = True
+except ImportError:
+    OAUTH_AVAILABLE = False
+
 from .mcp_config import MCPConfig
 
 logger = logging.getLogger(__name__)
@@ -42,6 +58,8 @@ class MCPManager:
         self._sessions: Dict[str, ClientSession] = {}
         self._transports: Dict[str, Tuple[Any, Any]] = {}  # Store (read, write) streams
         self._session_id_callbacks: Dict[str, Any] = {}  # For HTTP transport
+        self._oauth_tokens: Dict[str, Dict[str, Any]] = {}  # OAuth tokens by server
+        self._oauth_console = Console() if OAUTH_AVAILABLE else None
         self._exit_stack: Optional[AsyncExitStack] = None
         self._initialized = False
 
@@ -154,7 +172,7 @@ class MCPManager:
             raise MCPManagerError("Manager not initialized")
 
         url = config["url"]
-        headers = config.get("headers")
+        headers = config.get("headers", {})
         auth = None
 
         # Handle authentication
@@ -166,7 +184,13 @@ class MCPManager:
                 password = auth_config.get("password")
                 if username and password:
                     auth = httpx.BasicAuth(username, password)
-            # Add other auth types as needed
+            elif auth_type == "oauth" and OAUTH_AVAILABLE:
+                # Handle OAuth authentication
+                token = await self._handle_oauth_auth(server_name, auth_config)
+                if token:
+                    headers = headers.copy()
+                    headers["Authorization"] = f"Bearer {token['access_token']}"
+                    self._oauth_tokens[server_name] = token
 
         try:
             # Create the HTTP transport
@@ -676,3 +700,225 @@ class MCPManager:
     ) -> List[Tuple[str, Any]]:
         """Synchronous wrapper for broadcast_operation."""
         return asyncio.run(self.broadcast_operation(operation, *args, **kwargs))
+
+    # OAuth authentication methods
+
+    async def _handle_oauth_auth(
+        self, server_name: str, auth_config: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Handle OAuth authentication for a server.
+
+        Args:
+            server_name: Name of the server
+            auth_config: OAuth configuration
+
+        Returns:
+            Token data if successful, None otherwise
+        """
+        # Validate OAuth configuration
+        required_fields = [
+            "authorization_url",
+            "token_url",
+            "client_id",
+            "scope",
+            "redirect_uri",
+        ]
+        if not all(field in auth_config for field in required_fields):
+            raise MCPManagerError(
+                f"OAuth configuration missing required fields: {required_fields}"
+            )
+
+        # Try to load existing token
+        token = await self._load_oauth_token(server_name)
+        if token and self._is_token_valid(token):
+            return token
+
+        # Need new authorization
+        return await self._perform_oauth_flow(server_name, auth_config)
+
+    async def _perform_oauth_flow(
+        self, server_name: str, auth_config: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Perform the OAuth authorization flow.
+
+        Args:
+            server_name: Name of the server
+            auth_config: OAuth configuration
+
+        Returns:
+            Token data if successful, None otherwise
+        """
+        if not OAUTH_AVAILABLE or not HTTP_TRANSPORT_AVAILABLE:
+            raise MCPManagerError("OAuth support not available. Install required dependencies.")
+
+        # Generate PKCE parameters
+        verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('utf-8').rstrip('=')
+        challenge = base64.urlsafe_b64encode(
+            hashlib.sha256(verifier.encode('utf-8')).digest()
+        ).decode('utf-8').rstrip('=')
+        
+        # Generate state for CSRF protection
+        state = secrets.token_urlsafe(16)
+        
+        # Build authorization URL
+        auth_params = {
+            "client_id": auth_config["client_id"],
+            "redirect_uri": auth_config["redirect_uri"],
+            "response_type": "code",
+            "scope": auth_config["scope"],
+            "state": state,
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+        }
+        
+        # Create the authorization URL
+        auth_url = auth_config["authorization_url"]
+        if "?" in auth_url:
+            auth_url += "&"
+        else:
+            auth_url += "?"
+        auth_url += "&".join(f"{k}={v}" for k, v in auth_params.items())
+        
+        # Display the URL to the user
+        await self._handle_oauth_redirect(auth_url)
+        
+        # Get the callback URL from user
+        callback_url = await self._handle_oauth_callback()
+        
+        # Parse the callback URL
+        parsed = urlparse(callback_url)
+        params = parse_qs(parsed.query)
+        
+        # Verify state
+        if params.get("state", [None])[0] != state:
+            raise MCPManagerError("OAuth state mismatch - possible CSRF attack")
+        
+        # Get the authorization code
+        code = params.get("code", [None])[0]
+        if not code:
+            error = params.get("error", ["unknown"])[0]
+            raise MCPManagerError(f"OAuth authorization failed: {error}")
+        
+        # Exchange code for token
+        token_data = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": auth_config["redirect_uri"],
+            "client_id": auth_config["client_id"],
+            "code_verifier": verifier,
+        }
+        
+        # Add client secret if provided (confidential client)
+        if "client_secret" in auth_config:
+            token_data["client_secret"] = auth_config["client_secret"]
+        
+        # Make token request
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                auth_config["token_url"],
+                data=token_data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            
+            if response.status_code != 200:
+                raise MCPManagerError(f"Token exchange failed: {response.text}")
+            
+            token = response.json()
+            await self._save_oauth_token(server_name, token)
+            return token
+
+    async def _handle_oauth_redirect(self, url: str) -> Optional[str]:
+        """Handle OAuth redirect by displaying URL to user.
+
+        Args:
+            url: Authorization URL
+
+        Returns:
+            None (manual handling)
+        """
+        if self._oauth_console:
+            self._oauth_console.print(f"\n[bold blue]OAuth Authorization Required[/bold blue]")
+            self._oauth_console.print(f"Please visit this URL to authorize the application:")
+            self._oauth_console.print(f"[link]{url}[/link]\n")
+        return None
+
+    async def _handle_oauth_callback(self) -> str:
+        """Handle OAuth callback by prompting for the callback URL.
+
+        Returns:
+            The callback URL entered by the user
+        """
+        if self._oauth_console:
+            self._oauth_console.print(
+                "[yellow]After authorizing, paste the full callback URL here:[/yellow]"
+            )
+        return input("Callback URL: ")
+
+    def _get_token_storage_path(self, server_name: str) -> str:
+        """Get the token storage file path for a server.
+
+        Args:
+            server_name: Name of the server
+
+        Returns:
+            Path to the token file
+        """
+        return os.path.join(".mcp_tokens", f"{server_name}.json")
+
+    async def _save_oauth_token(
+        self, server_name: str, token_data: Dict[str, Any]
+    ) -> None:
+        """Save OAuth token to file.
+
+        Args:
+            server_name: Name of the server
+            token_data: Token data to save
+        """
+        # Calculate expiration time
+        if "expires_in" in token_data:
+            expires_at = datetime.now().timestamp() + token_data["expires_in"]
+            token_data["expires_at"] = expires_at
+
+        # Ensure directory exists
+        os.makedirs(".mcp_tokens", exist_ok=True)
+
+        # Save token
+        path = self._get_token_storage_path(server_name)
+        with open(path, "w") as f:
+            json.dump(token_data, f)
+
+    async def _load_oauth_token(self, server_name: str) -> Optional[Dict[str, Any]]:
+        """Load OAuth token from file.
+
+        Args:
+            server_name: Name of the server
+
+        Returns:
+            Token data if found and valid, None otherwise
+        """
+        path = self._get_token_storage_path(server_name)
+        if not os.path.exists(path):
+            return None
+
+        try:
+            with open(path, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.warning(f"Failed to load token for {server_name}: {e}")
+            return None
+
+    def _is_token_valid(self, token: Dict[str, Any]) -> bool:
+        """Check if a token is still valid.
+
+        Args:
+            token: Token data
+
+        Returns:
+            True if token is valid, False otherwise
+        """
+        if "expires_at" not in token:
+            return True  # No expiration
+
+        # Check if expired (with 5 minute buffer)
+        expires_at = token["expires_at"]
+        return datetime.now().timestamp() < (expires_at - 300)

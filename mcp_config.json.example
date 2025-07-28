@@ -27,6 +27,34 @@
         "username": "your-username",
         "password": "your-password"
       }
+    },
+    {
+      "name": "example-oauth-server",
+      "transport": "http",
+      "url": "https://api.example.com/mcp",
+      "auth": {
+        "type": "oauth",
+        "authorization_url": "https://auth.example.com/oauth/authorize",
+        "token_url": "https://auth.example.com/oauth/token",
+        "client_id": "your-client-id",
+        "client_secret": "your-client-secret",
+        "scope": "read write",
+        "redirect_uri": "http://localhost:8080/callback"
+      }
+    },
+    {
+      "name": "example-oauth-public-client",
+      "transport": "http",
+      "url": "https://api.example.com/mcp",
+      "auth": {
+        "type": "oauth",
+        "authorization_url": "https://auth.example.com/oauth/authorize",
+        "token_url": "https://auth.example.com/oauth/token",
+        "client_id": "your-public-client-id",
+        "scope": "read",
+        "redirect_uri": "http://localhost:8080/callback"
+      },
+      "priority": 1
     }
   ]
 }
