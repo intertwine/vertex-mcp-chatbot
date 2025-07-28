@@ -127,6 +127,7 @@ class TestMCPResources:
 
         assert chatbot._detect_resource_reference("This is a normal message") == []
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     @patch("src.chatbot.os.makedirs")
     def test_read_mcp_resource(self, mock_makedirs):
         """Test reading an MCP resource."""

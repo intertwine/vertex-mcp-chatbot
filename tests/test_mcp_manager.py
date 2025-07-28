@@ -174,6 +174,7 @@ class TestMCPManager:
         manager.connect_server_sync("test-stdio")
         assert "test-stdio" in manager._sessions
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     def test_disconnect_server(self, mock_config, mock_client_session):
         """Test disconnecting from a server."""
         manager = MCPManager(mock_config)
@@ -186,6 +187,7 @@ class TestMCPManager:
         assert "test-stdio" not in manager._active_servers
 
     @pytest.mark.asyncio
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     async def test_disconnect_nonexistent_server(self, mock_config):
         """Test disconnecting from a non-connected server."""
         manager = MCPManager(mock_config)
@@ -207,6 +209,7 @@ class TestMCPManager:
         assert servers[1]["connected"] is False
 
     @pytest.mark.asyncio
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     async def test_get_tools_single_server(self, mock_config):
         """Test getting tools from a specific server."""
         manager = MCPManager(mock_config)

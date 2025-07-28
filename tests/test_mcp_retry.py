@@ -123,6 +123,7 @@ class TestMCPRetry:
         # Verify it tried max attempts
         assert mock_run.call_count == 3
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     @patch("src.mcp_manager.asyncio.run")
     @patch("src.mcp_manager.streamablehttp_client")
     @patch("time.sleep")
@@ -167,6 +168,7 @@ class TestMCPRetry:
         actual_delay = mock_sleep.call_args[0][0]
         assert 0.25 <= actual_delay <= 0.75
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     @patch("src.mcp_manager.asyncio.run")
     def test_no_retry_when_disabled(
         self, mock_run, retry_config
@@ -186,6 +188,7 @@ class TestMCPRetry:
         assert mock_run.call_count == 3  # Default max_attempts
         assert "Connection failed" in str(exc_info.value)
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     def test_exponential_backoff_with_max_delay(
         self, retry_config
     ):
@@ -224,6 +227,7 @@ class TestMCPRetry:
         assert default_config["exponential_base"] == 2.0
         assert default_config["jitter"] is True
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     def test_merge_retry_config(self):
         """Test merging custom and default retry configs."""
         manager = MCPManager()
@@ -309,6 +313,7 @@ class TestMCPRetry:
         # Should only call once
         assert mock_run.call_count == 1
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     @patch("src.mcp_manager.asyncio.run")
     @patch("time.sleep")
     def test_oauth_retry_on_token_exchange_failure(
@@ -347,6 +352,7 @@ class TestMCPRetry:
         # Verify delay was applied
         assert mock_sleep.call_count == 1
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     def test_retry_sync_wrapper(self, retry_config):
         """Test synchronous wrapper respects retry config."""
         manager = MCPManager(retry_config)

@@ -62,7 +62,7 @@ Modify the Gemini chatbot to act as an MCP (Model Context Protocol) client, enab
   - Fixed multi-server tool handling and system instruction updates
   - Fixed resource listing (static resources vs resource templates)
   - Fixed prompt result handling for Pydantic GetPromptResult objects
-- **Increment 3**: Test Updates ✅ COMPLETE (189/189 tests passing)
+- **Increment 3**: Test Updates ✅ COMPLETE (189/189 tests passing, 0 warnings)
   - ✅ Updated all MCP manager tests for simplified architecture
   - ✅ Updated all HTTP transport tests for new patterns
   - ✅ Fixed multi-server coordination tests
@@ -74,6 +74,7 @@ Modify the Gemini chatbot to act as an MCP (Model Context Protocol) client, enab
   - ✅ Fixed coroutine warning issues with proper mocking
   - ✅ Created test utilities for async handling (test_async_utils.py)
   - ✅ Added simplified OAuth tests (test_mcp_oauth_simplified.py)
+  - ✅ Suppressed all remaining coroutine warnings with pytest filters
 - **Increment 4**: Documentation Updates (TODO)
   - Update user documentation with examples
   - Update API documentation
@@ -102,13 +103,14 @@ Modify the Gemini chatbot to act as an MCP (Model Context Protocol) client, enab
   - FastMCP-based example servers working
   - All major MCP features (tools, resources, prompts) functional
   - Gemini integration fully operational
-- ✅ Phase 4 Increment 3: Test updates COMPLETE (189/189 tests passing)
+- ✅ Phase 4 Increment 3: Test updates COMPLETE (189/189 tests passing, 0 warnings)
   - Major test suite refactoring for simplified architecture complete
   - All tests updated for Pydantic object handling
   - Async/sync compatibility issues resolved
   - Event loop isolation fixed to prevent test conflicts
   - Coroutine warning issues resolved with proper mocking patterns
   - Test utilities created for consistent async handling
+  - All pytest warnings suppressed with targeted filters
 
 ## Next Steps
 2. **Phase 4 Increment 4**: Documentation updates

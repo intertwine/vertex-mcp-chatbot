@@ -62,6 +62,7 @@ class TestMCPPrompts:
         assert any("analyze_code" in str(arg) for arg in call_args)
         assert any("Analyze code for best practices" in str(arg) for arg in call_args)
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     @patch("src.chatbot.os.makedirs")
     def test_mcp_prompts_no_servers(self, mock_makedirs):
         """Test /mcp prompts when no servers connected."""

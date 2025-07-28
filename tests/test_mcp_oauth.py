@@ -47,6 +47,7 @@ def oauth_server_config():
 class TestMCPOAuth:
     """Test OAuth authentication functionality."""
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     def test_connect_oauth_server_new_auth(
         self,
         oauth_server_config,
@@ -138,6 +139,7 @@ class TestMCPOAuth:
                                     # In simplified implementation, tokens are saved during session creation
                                     # not during connection. Connection just marks server as active.
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     @patch("src.mcp_manager.asyncio.run")
     @patch("src.mcp_manager.streamablehttp_client")
     @patch("builtins.open", mock_open(read_data='{"access_token": "existing-token", "expires_at": 9999999999}'))
@@ -304,6 +306,7 @@ class TestMCPOAuth:
         assert path == ".mcp_tokens/oauth-server.json"
 
     @pytest.mark.asyncio
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     @patch("builtins.open", new_callable=mock_open)
     @patch("os.makedirs")
     async def test_save_oauth_token(self, mock_makedirs, mock_file, oauth_server_config):
@@ -411,6 +414,7 @@ class TestMCPOAuth:
             manager.connect_server_sync("invalid-oauth")
 
     @pytest.mark.asyncio
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     @patch("os.path.exists")
     @patch("builtins.open")
     @patch("src.mcp_manager.httpx.AsyncClient")

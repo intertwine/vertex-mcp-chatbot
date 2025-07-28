@@ -207,6 +207,7 @@ class TestHTTPTransport:
         assert "test-http" not in manager._sessions
         assert "test-http" not in manager._active_servers
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     def test_connect_http_server_sync(self, mock_config):
         """Test synchronous HTTP server connection."""
         manager = MCPManager(mock_config)
@@ -223,6 +224,7 @@ class TestHTTPTransport:
 class TestSSETransport:
     """Test SSE transport functionality."""
 
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     @patch("src.mcp_manager.asyncio.run")
     @patch("src.mcp_manager.sse_client")
     def test_connect_sse_server(self, mock_sse_client, mock_run, mock_config):
@@ -313,6 +315,7 @@ class TestHTTPOperations:
     """Test operations over HTTP transport."""
 
     @pytest.mark.asyncio
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     async def test_get_tools_http(self, mock_config):
         """Test getting tools from HTTP server."""
         manager = MCPManager(mock_config)
@@ -361,6 +364,7 @@ class TestHTTPOperations:
         mock_session.list_tools.assert_called_once()
 
     @pytest.mark.asyncio
+    @pytest.mark.filterwarnings("ignore:coroutine.*was never awaited:RuntimeWarning")
     async def test_call_tool_http(self, mock_config):
         """Test calling a tool on HTTP server."""
         manager = MCPManager(mock_config)
