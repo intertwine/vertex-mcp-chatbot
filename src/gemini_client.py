@@ -42,7 +42,9 @@ class GeminiClient:
         Args:
             system_instruction: Optional system instruction to guide the model.
         """
-        config = {}
+        config = {
+            "temperature": 0.6,
+        }
         if system_instruction:
             config["system_instruction"] = system_instruction
 

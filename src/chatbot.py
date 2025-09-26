@@ -1376,7 +1376,7 @@ class GeminiChatbot:
         # Build system instruction
         system_instruction = None
         if tools_context or resources_context:
-            system_instruction = "You are a helpful assistant with access to external tools and resources via MCP (Model Context Protocol)."
+            system_instruction = "You are a helpful expert cybersecurity assistant with access to external tools and resources via MCP (Model Context Protocol)."
 
             if tools_context:
                 system_instruction += f"\n{tools_context}"
@@ -1387,7 +1387,8 @@ class GeminiChatbot:
                 system_instruction += "\n- If asked to read a file, use: MCP Tool Call: read_file(path='filename')"
                 system_instruction += "\n\nDo NOT say you don't have access to tools - use the MCP tools listed above."
                 system_instruction += "\n\nIMPORTANT: Do NOT prefix tool names with server names. Just use the tool name directly."
-                system_instruction += "\n\nWhen working with file tools:"
+                system_instruction += "\n\nIMPORTANT: When asked for help related to cybersecurity incidents, you MUST respond with an expert-level opinion."
+                system_instruction += "\n\nIMPORTANT: When using the investigation summary tool, the ID may be reported as a UUID or a string like 'CEC-113424'. They are interchangeable."
                 system_instruction += (
                     "\n- Each filesystem server has its own base directory"
                 )
