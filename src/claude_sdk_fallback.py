@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import itertools
 from types import SimpleNamespace
+from typing import Optional
 
 
 class _Agents:
-    def __init__(self, default_model: str | None = None) -> None:
+    def __init__(self, default_model: Optional[str] = None) -> None:
         self._ids = itertools.count(1)
         self._default_model = default_model
 
