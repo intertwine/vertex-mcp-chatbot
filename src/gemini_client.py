@@ -1,6 +1,6 @@
 """Gemini client for interacting with Google Gen AI."""
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from google import genai
 from google.genai import types
@@ -42,9 +42,7 @@ class GeminiClient:
         Args:
             system_instruction: Optional system instruction to guide the model.
         """
-        config = {
-            "temperature": 0.6,
-        }
+        config: Dict[str, object] = {}
         if system_instruction:
             config["system_instruction"] = system_instruction
 
