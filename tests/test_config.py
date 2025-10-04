@@ -85,7 +85,10 @@ class TestConfig:
             kwargs = Config.get_claude_sdk_init_kwargs("claude-vertex")
             assert kwargs["default_model"] == "claude-vertex"
             assert kwargs["extra_headers"]["Authorization"] == "Bearer token"
-            assert kwargs["extra_headers"]["Anthropic-Version"] == Config.CLAUDE_API_VERSION
+            assert (
+                kwargs["extra_headers"]["Anthropic-Version"]
+                == Config.CLAUDE_API_VERSION
+            )
 
     def test_config_is_static(self):
         """Test that Config methods are static and can be called without instantiation."""

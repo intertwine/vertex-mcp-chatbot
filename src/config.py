@@ -178,7 +178,9 @@ class Config:
         }
 
     @staticmethod
-    def get_claude_sdk_init_kwargs(default_model: Optional[str] = None) -> Dict[str, object]:
+    def get_claude_sdk_init_kwargs(
+        default_model: Optional[str] = None,
+    ) -> Dict[str, object]:
         """Return keyword arguments for initializing the Claude SDK client."""
 
         kwargs: Dict[str, object] = {}

@@ -88,13 +88,16 @@ class TestClaudeAgentClient:
     def test_create_sdk_client_uses_config_kwargs(self):
         sdk_instance = MagicMock()
 
-        with patch(
-            "src.claude_agent_client._resolve_sdk_client_class",
-            return_value=MagicMock(return_value=sdk_instance),
-        ) as resolver, patch(
-            "src.claude_agent_client.Config.get_claude_sdk_init_kwargs",
-            return_value={"default_model": "claude-4.5-sonnet", "api_key": "token"},
-        ) as config_kwargs:
+        with (
+            patch(
+                "src.claude_agent_client._resolve_sdk_client_class",
+                return_value=MagicMock(return_value=sdk_instance),
+            ) as resolver,
+            patch(
+                "src.claude_agent_client.Config.get_claude_sdk_init_kwargs",
+                return_value={"default_model": "claude-4.5-sonnet", "api_key": "token"},
+            ) as config_kwargs,
+        ):
             client = ClaudeAgentClient(model_name=None)
             resolver.assert_called_once()
             config_kwargs.assert_called_once_with("claude-4.5-sonnet")

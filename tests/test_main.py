@@ -171,7 +171,8 @@ class TestMain:
         with patch("main.ClaudeAgentChatbot") as mock_claude_chatbot_class:
             with patch("main.GeminiChatbot") as mock_gemini_chatbot_class:
                 with patch(
-                    "sys.argv", ["main.py", "--model", "claude-4-haiku", "--provider", "claude"]
+                    "sys.argv",
+                    ["main.py", "--model", "claude-4-haiku", "--provider", "claude"],
                 ):
                     mock_chatbot = Mock()
                     mock_claude_chatbot_class.return_value = mock_chatbot

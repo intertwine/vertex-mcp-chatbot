@@ -10,9 +10,7 @@ class TestClaudeAgentChatbot:
 
     @patch("src.claude_agent_chatbot.MCPConfig")
     @patch("src.claude_agent_chatbot.ClaudeAgentClient")
-    def test_initialize_bootstraps_client(
-        self, mock_client_class, mock_mcp_config
-    ):
+    def test_initialize_bootstraps_client(self, mock_client_class, mock_mcp_config):
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
         mock_config = MagicMock()

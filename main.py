@@ -4,8 +4,8 @@
 import argparse
 import sys
 
-from src.claude_agent_chatbot import ClaudeAgentChatbot
 from src.chatbot import GeminiChatbot
+from src.claude_agent_chatbot import ClaudeAgentChatbot
 
 
 def main():
