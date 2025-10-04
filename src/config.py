@@ -174,7 +174,7 @@ class Config:
         return {
             "base_url": base_url,
             "api_key": token,
-            "extra_headers": headers,
+            "default_headers": headers,
         }
 
     @staticmethod
@@ -198,12 +198,11 @@ class Config:
         if model_name:
             kwargs.setdefault("default_model", model_name)
 
-        headers = dict(kwargs.get("extra_headers", {}))
-        if "Anthropic-Version" not in headers:
-            headers["Anthropic-Version"] = Config.CLAUDE_API_VERSION
+        # Use default_headers for Anthropic SDK (not extra_headers)
+        headers = dict(kwargs.get("default_headers", {}))
+        if "anthropic-version" not in headers:
+            headers["anthropic-version"] = Config.CLAUDE_API_VERSION
         if headers:
-            kwargs["extra_headers"] = headers
-        elif "extra_headers" in kwargs:
-            del kwargs["extra_headers"]
+            kwargs["default_headers"] = headers
 
         return kwargs
