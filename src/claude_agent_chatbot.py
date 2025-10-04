@@ -103,7 +103,7 @@ class ClaudeAgentChatbot:
     def _display_help(self) -> None:
         self.console.print(
             Panel(
-                """[/]Available commands[/]:
+                """[bold]Available commands[/bold]:
 /help      Show this message
 /history   Display the current chat history
 /system    Update the system prompt for subsequent replies
