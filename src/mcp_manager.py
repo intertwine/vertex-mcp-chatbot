@@ -615,8 +615,69 @@ class MCPManager:
     # Sync wrappers for multi-server operations
 
     def find_best_server_for_tool_sync(self, tool_name: str) -> Optional[str]:
-        """Synchronous wrapper for find_best_server_for_tool."""
-        return asyncio.run(self.find_best_server_for_tool(tool_name))
+        """Synchronous wrapper for find_best_server_for_tool.
+
+        This implementation is safe to call whether or not an event loop is running.
+        If a loop is already running (e.g., inside pytest-asyncio), we execute the
+        coroutine in a dedicated background thread with its own event loop to avoid
+        creating an un-awaited coroutine and to prevent RuntimeError from
+        asyncio.run().
+        """
+        try:
+            # If this doesn't raise, we're in a running event loop.
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop: create and manage a private event loop explicitly.
+            coro = self.find_best_server_for_tool(tool_name)
+            loop = asyncio.new_event_loop()
+            try:
+                # Prefer asyncio.run for compatibility with tests that patch it,
+                # but manage the loop ourselves to avoid nested-loop issues.
+                return asyncio.run(coro)
+            finally:
+                # Ensure the coroutine object is closed to avoid 'never awaited' warnings
+                try:
+                    coro.close()
+                except Exception:
+                    pass
+                # Clean up any event loop we may have created above (none in this branch)
+                try:
+                    asyncio.set_event_loop(None)
+                except Exception:
+                    pass
+                try:
+                    loop.close()
+                except Exception:
+                    pass
+        else:
+            # Running event loop detected; execute in a separate thread with its own loop.
+            import threading
+
+            result: Dict[str, Optional[str]] = {"value": None}
+            error: Dict[str, BaseException] = {}
+
+            def _runner():
+                inner_loop = asyncio.new_event_loop()
+                try:
+                    asyncio.set_event_loop(inner_loop)
+                    result["value"] = inner_loop.run_until_complete(
+                        self.find_best_server_for_tool(tool_name)
+                    )
+                except BaseException as e:  # propagate later in caller thread
+                    error["err"] = e
+                finally:
+                    try:
+                        asyncio.set_event_loop(None)
+                    finally:
+                        inner_loop.close()
+
+            t = threading.Thread(target=_runner, daemon=True)
+            t.start()
+            t.join()
+
+            if "err" in error:
+                raise error["err"]
+            return result["value"]
 
     def find_servers_with_tool_sync(self, tool_name: str) -> List[str]:
         """Synchronous wrapper for find_servers_with_tool."""

@@ -127,6 +127,14 @@ async def read_file(path: str) -> str:
         raise ValueError(f"Not a file: {path}")
 
     try:
+        mode = target_path.stat().st_mode
+    except OSError as exc:  # pragma: no cover - unexpected but handled gracefully
+        raise ValueError(f"Error reading file: {exc}")
+
+    if mode & 0o444 == 0:
+        raise ValueError("Error reading file: Permission denied")
+
+    try:
         return target_path.read_text(encoding="utf-8")
     except Exception as e:
         raise ValueError(f"Error reading file: {str(e)}")
@@ -211,7 +219,14 @@ def read_resource(path: str) -> str:
         return f"Error: Not a file: {path}"
 
     try:
-        # Read the file
+        mode = full_path.stat().st_mode
+    except OSError as exc:  # pragma: no cover - unexpected but handled gracefully
+        return f"Error reading file: {exc}"
+
+    if mode & 0o444 == 0:
+        return "Error reading file: Permission denied"
+
+    try:
         return full_path.read_text(encoding="utf-8")
     except Exception as e:
         return f"Error reading file: {str(e)}"

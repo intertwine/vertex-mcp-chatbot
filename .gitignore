@@ -26,6 +26,7 @@ ENV/
 *.log
 /mcp_config.json
 .mcp_tokens/
+.claude/history.txt
 
 # Distribution / packaging
 dist/

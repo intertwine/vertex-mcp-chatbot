@@ -7,24 +7,24 @@
 [![Documentation](https://img.shields.io/badge/documentation-purple.svg)](https://modelcontextprotocol.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An interactive command-line chatbot powered by Google's Gemini LLM via Vertex AI. This application provides a rich terminal interface for conversing with Gemini models, complete with markdown rendering, conversation history, various utility commands, and Model Context Protocol (MCP) support. 
+An interactive command-line chatbot powered by Anthropic's Claude via Google Cloud Vertex AI. The terminal experience is backed by the Claude Agent SDK so you inherit native MCP (Model Context Protocol) tool handling, structured responses, and stateful sessions out of the box. Gemini utilities and helpers remain available for experimentation—launch them with a single flag—but the primary REPL now speaks directly to Claude 4.5 Sonnet by default.
 
 ## Features
 
 - 🤖 **Interactive Chat Interface**: Clean, intuitive terminal UI with rich formatting
+- 🧠 **Claude Agent SDK**: Launches a full Claude agent with MCP servers, session history, and tool orchestration managed by Anthropic's runtime
 - 📝 **Markdown Support**: Responses are rendered with proper markdown formatting
 - 📜 **Scrollable Content**: Long responses and conversation history automatically become scrollable with intuitive navigation controls
-- 💾 **Persistent History**: Conversation history saved between sessions
+- 💾 **Persistent History**: Conversation history saved between sessions on disk
 - 🎨 **Rich Terminal UI**: Colorful, well-formatted output using Rich library
-- 🔧 **Multiple Models**: Support for different Gemini models (flash, pro)
-- 📋 **Command System**: Built-in commands for managing your chat session
-- 🔌 **MCP Integration**: Full Model Context Protocol support for extending Gemini's capabilities
+- 🔧 **Provider & Model Selection**: Choose between the Claude Agent SDK or the legacy Gemini REPL and override individual model identifiers with simple CLI flags
+- 🔌 **MCP Integration**: Claude's built-in MCP support is automatically wired up using your local `mcp_config.json`
 
 ### MCP Features
 
 The chatbot includes comprehensive MCP (Model Context Protocol) support:
 
-- ✅ **Tool Execution**: Gemini automatically uses MCP tools during conversations
+- ✅ **Tool Execution**: Claude automatically uses MCP tools during conversations
 - ✅ **Resource Access**: Read files, APIs, and other resources via URIs
 - ✅ **Prompt Templates**: Use pre-defined templates for common tasks
 - ✅ **Multiple Transports**: stdio, HTTP, and SSE protocols supported
@@ -37,7 +37,7 @@ The chatbot includes comprehensive MCP (Model Context Protocol) support:
 
 - Python 3.10 or higher
 - [uv](https://docs.astral.sh/uv/) package manager installed
-- Access to Google Cloud Vertex AI with Gemini models
+- Access to Google Cloud Vertex AI with Anthropic Claude enabled (MCP-capable regions)
 - Google Cloud CLI (`gcloud`) installed and authenticated
 
 ## Installation
@@ -79,17 +79,40 @@ GOOGLE_CLOUD_LOCATION='us-east1'
 
 ### Basic Usage
 
-Start the chatbot with the default model (gemini-2.5-flash):
+Start the chatbot with the default model (`claude-4.5-sonnet`):
 ```bash
 uv run main.py
 ```
 
 ### Using Different Models
 
-Start with a different model:
+Start with a different Claude model:
 ```bash
-uv run main.py --model gemini-2.5-pro
+uv run main.py --model claude-4-haiku
 ```
+
+### Switching between Claude and Gemini
+
+The Claude Agent SDK currently supports only Anthropic models—Gemini models cannot be loaded through the SDK even on Vertex AI. If you need to chat with Gemini, switch back to the legacy Gemini REPL using the `--provider` flag:
+
+```bash
+uv run main.py --provider gemini
+```
+
+You can still supply a `--model` override, which is forwarded to the Gemini client. Omitting `--provider` keeps the default Claude 4.5 Sonnet agent experience.
+
+### Configuring Claude via Vertex AI
+
+The CLI automatically attempts to run Claude through Google Cloud Vertex AI using Application Default Credentials. To customise the behaviour, set any of the following environment variables before launching the REPL (they can be stored in `.env`):
+
+- `CLAUDE_VERTEX_ENABLED` – set to `false` to fall back to the public Anthropic API (requires `ANTHROPIC_API_KEY`)
+- `CLAUDE_VERTEX_PROJECT` – override the GCP project used for billing (`GOOGLE_CLOUD_PROJECT` is used otherwise)
+- `CLAUDE_VERTEX_LOCATION` – override the Vertex region (defaults to `GOOGLE_CLOUD_LOCATION` or `us-east1`)
+- `CLAUDE_VERTEX_BASE_URL` – fully override the Vertex endpoint if you need to point at a proxy
+- `CLAUDE_MODEL` – override the default Claude model name (`claude-4.5-sonnet`)
+- `CLAUDE_API_VERSION` – override the Anthropic API version header sent to the SDK
+
+See [docs/claude-agent.md](docs/claude-agent.md) for an end-to-end walkthrough that covers authentication, MCP configuration, and troubleshooting tips when connecting Claude through Vertex AI, plus guidance on when to prefer the legacy Gemini provider.
 
 ### MCP Configuration
 
@@ -121,11 +144,10 @@ When responses or content are too long for your terminal, the chatbot automatica
 While chatting, you can use these commands:
 
 - `/help` - Show available commands and tips
-- `/clear` - Clear the chat history and start fresh
-- `/history` - Display the full conversation history
-- `/model` - Show which Gemini model you're using
-- `/prune` - Clear local command history (with confirmation)
-- `/quit` or `/exit` - Exit the chatbot
+- `/clear` - Clear the chat history and start fresh (resets the Claude session)
+- `/history` - Display the full conversation history with markdown rendering
+- `/system <prompt>` - Update the system instruction and restart the Claude agent
+- `/quit` - Exit the chatbot
 
 **MCP Commands** (when MCP is available):
 - `/mcp connect <server>` - Connect to an MCP server from your config
@@ -138,20 +160,20 @@ While chatting, you can use these commands:
 
 ### MCP Tool Integration
 
-When MCP servers are connected, their tools become automatically available during conversations. Gemini will intelligently use these tools when appropriate to help answer your questions or perform tasks. You don't need to use special syntax - just chat naturally and Gemini will:
+When MCP servers are connected, their tools become automatically available during conversations. Claude will intelligently use these tools when appropriate to help answer your questions or perform tasks. You don't need to use special syntax - just chat naturally and Claude will:
 
 - Recognize when a tool would be helpful
 - Execute the appropriate tool with the right parameters
 - Include the tool results in its response
 
-For example, if you have a weather MCP server connected and ask "What's the weather like?", Gemini will automatically use the weather tool to get current conditions.
+For example, if you have a weather MCP server connected and ask "What's the weather like?", Claude will automatically use the weather tool to get current conditions.
 
 ### MCP Resource Integration
 
-MCP resources are automatically read when you reference them by URI in your messages. This allows you to seamlessly include external data in your conversations:
+MCP resources are automatically read when you reference them by URI in your messages. This allows you to seamlessly include external data in your conversations with Claude:
 
 - **Automatic Detection**: When you include a resource URI in your message, it's automatically detected
-- **Transparent Reading**: The resource content is fetched and included in the context sent to Gemini
+- **Transparent Reading**: The resource content is fetched and included in the context sent to Claude
 - **Multiple Resources**: You can reference multiple resources in a single message
 - **Standard URI Format**: Use standard URIs like `file:///path/to/data.json` or `http://example.com/api/data`
 
@@ -159,7 +181,7 @@ MCP resources are automatically read when you reference them by URI in your mess
 ```
 You> Can you analyze the data in file:///home/user/sales_report.csv?
 
-[The chatbot automatically reads the CSV file and includes its content in the prompt to Gemini,
+[The chatbot automatically reads the CSV file and includes its content in the prompt to Claude,
 who can then analyze and discuss the data]
 ```
 
@@ -170,7 +192,7 @@ MCP servers can provide prompt templates that help structure interactions for sp
 - **List Templates**: Use `/mcp prompts` to see all available templates
 - **Use a Template**: Use `/mcp prompt <template_name>` to apply a template
 - **Interactive Arguments**: The chatbot will prompt you for any required template arguments
-- **Seamless Processing**: Filled templates are sent directly to Gemini for processing
+- **Seamless Processing**: Filled templates are sent directly to Claude for processing
 
 **Example:**
 ```
@@ -184,33 +206,45 @@ You> /mcp prompt analyze_function
 Enter value for 'function_name': calculateTotalPrice
 Enter value for 'context': This function processes shopping cart items
 
-[The template is filled with your values and sent to Gemini, who provides
+[The template is filled with your values and sent to Claude, who provides
 a detailed analysis of the function based on the structured prompt]
 ```
 
 ### Example Session
 
 ```
-🚀 Initializing Gemini Chatbot...
-✅ Vertex AI initialized successfully
-✅ Model 'gemini-2.5-flash' ready
-✅ Chatbot ready!
-Type '/help' for commands or '/quit' to exit
+🚀 Starting Claude Agent REPL...
+✅ Ready!
 
 You> What is machine learning?
 
-╭─ Gemini ─────────────────────────────────────────────╮
+╭─ Claude ─────────────────────────────────────────────╮
 │                                                      │
-│  Machine learning (ML) is a type of artificial       │
-│  intelligence (AI) that allows software              │
-│  applications to become more accurate in             │
-│  predicting outcomes without being explicitly        │
-│  programmed to do so...                              │
+│  Machine learning (ML) is a branch of artificial     │
+│  intelligence focused on building systems that can   │
+│  learn from data and improve their performance over  │
+│  time without being explicitly programmed for every  │
+│  scenario...                                         │
 │                                                      │
 ╰──────────────────────────────────────────────────────╯
 
-You> /model
-Current model: gemini-2.5-flash
+You> /system You are a patient tutor for high-school students.
+System prompt updated.
+
+You> Explain overfitting in one paragraph.
+
+╭─ Claude ─────────────────────────────────────────────╮
+│                                                      │
+│  Overfitting happens when a model memorises the      │
+│  training data instead of learning the underlying    │
+│  patterns, so it performs well on the data it has    │
+│  seen but poorly on new examples. A simple way to    │
+│  picture it is a student who only studies past exam  │
+│  answers: they may ace the practice questions yet    │
+│  struggle when the real test words things slightly   │
+│  differently.                                        │
+│                                                      │
+╰──────────────────────────────────────────────────────╯
 
 You> /quit
 
@@ -357,12 +391,16 @@ vertex-mcp-chatbot/
 ├── README.md           # This file
 ├── mcp_config.json.example # Example MCP server configuration
 ├── docs/
+│   ├── claude-agent.md # Claude Agent SDK + Vertex AI walkthrough
 │   └── mcp-guide.md    # Comprehensive MCP user guide
 ├── src/
 │   ├── __init__.py     # Package init
-│   ├── config.py       # Configuration management
-│   ├── gemini_client.py # Gemini/Vertex AI client wrapper
-│   ├── chatbot.py      # Interactive chatbot implementation
+│   ├── claude_agent_chatbot.py # Claude Agent REPL (default CLI)
+│   ├── claude_agent_client.py  # Claude SDK helper / session manager
+│   ├── claude_sdk_fallback.py  # Local stub used in tests when SDK is unavailable
+│   ├── config.py       # Configuration management for Claude + Gemini helpers
+│   ├── gemini_client.py # Legacy Gemini/Vertex AI client wrapper (still used in tests)
+│   ├── chatbot.py      # Legacy Gemini chatbot implementation
 │   ├── mcp_config.py   # MCP configuration handling
 │   └── mcp_manager.py  # MCP client management
 └── tests/
@@ -370,7 +408,9 @@ vertex-mcp-chatbot/
     ├── conftest.py     # Pytest fixtures and configuration
     ├── test_config.py  # Configuration tests
     ├── test_gemini_client.py # Gemini client tests
-    ├── test_chatbot.py # Chatbot functionality tests
+    ├── test_chatbot.py # Legacy Gemini chatbot functionality tests
+    ├── test_claude_agent_chatbot.py # Claude REPL behaviour
+    ├── test_claude_agent_client.py # Claude client helper tests
     ├── test_main.py    # Main entry point tests
     ├── test_integration.py # Integration tests
     ├── test_mcp_config.py # MCP configuration tests
@@ -385,35 +425,33 @@ vertex-mcp-chatbot/
 
 The application uses the following configuration (can be modified in `src/config.py`):
 
-- **Project ID**: `your-gcp-project-id` # MAKE SURE YOU CHANGE THIS IN .env!
-- **Location**: `us-east1`
-- **Default Model**: `gemini-2.5-flash`
+- **Project ID**: `your-gcp-project-id` (override in `.env` via `GOOGLE_CLOUD_PROJECT`)
+- **Location**: `your-gcp-location` (override in `.env` via `GOOGLE_CLOUD_LOCATION`)
+- **Default Claude Model**: `claude-4.5-sonnet` (change via `CLAUDE_MODEL`)
+- **Anthropic API Version**: `2025-02-19` (set `CLAUDE_API_VERSION` to override)
 - **Max History Length**: 10 conversation turns
 
 ## Troubleshooting
 
-### "Failed to initialize Google Gen AI client"
+### "Failed to start Claude Agent REPL"
 
 Make sure you've:
 1. Authenticated with Google Cloud: `gcloud auth application-default login`
-2. Your account has access to the specified Google Cloud project
-3. Vertex AI API is enabled in your project
-4. Your account has the necessary permissions (Vertex AI User role)
+2. Enabled the Vertex AI API and Anthropic publisher access for your project/region
+3. Granted the `Vertex AI User` role to the identity running the CLI
+4. Installed dependencies (`uv sync` or `pip install -e .`) so `google-auth` is available
 
-### "Authentication Error"
+### "Unable to refresh Google credentials"
 
 Check that:
-1. You've run `gcloud auth application-default login` successfully
-2. The project ID in the config matches your GCP project
-3. Gemini models are available in your specified region
-4. Your Google Cloud account has billing enabled
+1. ADC credentials are active (`gcloud auth application-default login` or service account JSON)
+2. The `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` values match your deployment
+3. The executing user/service account has billing enabled for the project
+4. You are targeting a region that exposes Claude through Vertex AI
 
-### Connection Issues
+### Falling back to the public Anthropic API
 
-Ensure:
-1. You have an active internet connection
-2. No firewall/proxy blocking access to Google Cloud
-3. Your service account is active and not expired
+If Vertex access is unavailable you can still run the REPL by setting `CLAUDE_VERTEX_ENABLED=false` and exporting `ANTHROPIC_API_KEY`. The helper automatically reconfigures the Claude SDK to use the public endpoint and keeps MCP tooling enabled.
 
 ## Testing
 
@@ -476,6 +514,8 @@ uv run python scripts/run_example_tests.py --check
 
 **Unit Tests:**
 - `test_config.py` - Configuration management (6 tests)
+- `test_claude_agent_client.py` - Claude Agent client helper (6 tests)
+- `test_claude_agent_chatbot.py` - Claude REPL commands and history (7 tests)
 - `test_gemini_client.py` - Gemini API client functionality (11 tests)
 - `test_chatbot.py` - Interactive chatbot features (23 tests)
 - `test_main.py` - Main entry point and CLI (8 tests)
@@ -499,7 +539,7 @@ uv run python scripts/run_example_tests.py --check
 
 The test suite covers:
 - ✅ **Configuration**: Environment variables, defaults, static methods
-- ✅ **API Client**: Initialization, chat sessions, message handling, error cases
+- ✅ **Claude Agent**: Session lifecycle management, MCP registration, command handling
 - ✅ **Chatbot UI**: Commands, history, display formatting, input validation
 - ✅ **CLI Interface**: Argument parsing, exception handling, lifecycle management
 - ✅ **Integration**: End-to-end workflows, component interactions
@@ -516,6 +556,7 @@ The test suite covers:
 ## Documentation
 
 - 📚 **[Documentation Index](docs/README.md)** - Complete documentation overview
+- 🤖 **[Claude Agent Guide](docs/claude-agent.md)** - Configure the Claude Agent SDK on Vertex AI
 - 📖 **[MCP User Guide](docs/mcp-guide.md)** - Comprehensive guide to using MCP features
 - ⚙️ **[MCP Configuration Reference](docs/mcp-config-reference.md)** - Detailed configuration options
 - 🔧 **[MCP API Reference](docs/mcp-api.md)** - Technical API documentation
@@ -528,16 +569,17 @@ The test suite covers:
 To extend or modify the chatbot:
 
 ### Architecture
-1. **`GeminiClient`** (`src/gemini_client.py`) - Handles all Vertex AI interactions
-2. **`GeminiChatbot`** (`src/chatbot.py`) - Manages UI and user interaction
-3. **`Config`** (`src/config.py`) - Centralized configuration management
+1. **`ClaudeAgentClient`** (`src/claude_agent_client.py`) - Creates Claude agents/sessions and sends messages
+2. **`ClaudeAgentChatbot`** (`src/claude_agent_chatbot.py`) - Terminal UI that wraps the Claude Agent SDK
+3. **`Config`** (`src/config.py`) - Centralised configuration management for Claude and Gemini helpers
 4. **`main.py`** - Entry point and CLI argument handling
+5. **Legacy Gemini modules** (`src/gemini_client.py`, `src/chatbot.py`) - Retained for backwards compatibility and tests
 
 ### Adding New Features
-1. **New Commands**: Extend the `process_command` method in `GeminiChatbot`
+1. **New Commands**: Extend `ClaudeAgentChatbot.handle_command` for CLI additions
 2. **Model Parameters**: Modify settings in the `Config` class
-3. **API Features**: Add methods to `GeminiClient` class
-4. **UI Enhancements**: Update display methods in `GeminiChatbot`
+3. **API Features**: Add helpers to `ClaudeAgentClient` (or the fallback stub) for advanced SDK usage
+4. **UI Enhancements**: Update rendering helpers in `ClaudeAgentChatbot`
 
 ### Development Workflow
 ```bash
