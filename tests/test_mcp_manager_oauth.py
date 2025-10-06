@@ -58,7 +58,9 @@ class TestOAuthCoverage:
             # Missing other required fields
         }
 
-        with pytest.raises(MCPManagerError, match="OAuth configuration missing required fields"):
+        with pytest.raises(
+            MCPManagerError, match="OAuth configuration missing required fields"
+        ):
             await manager._handle_oauth_auth("oauth-server", incomplete_auth)
 
     @pytest.mark.asyncio
@@ -102,7 +104,9 @@ class TestOAuthCoverage:
         manager = MCPManager()
 
         # Should not raise, returns None
-        result = await manager._handle_oauth_redirect("https://auth.example.com/authorize")
+        result = await manager._handle_oauth_redirect(
+            "https://auth.example.com/authorize"
+        )
         assert result is None
 
     @pytest.mark.asyncio
@@ -201,5 +205,7 @@ class TestOAuthCoverage:
                     "_handle_oauth_callback",
                     return_value="http://localhost:8080/callback?error=access_denied&state=KNOWN_STATE",
                 ):
-                    with pytest.raises(MCPManagerError, match="OAuth authorization failed"):
+                    with pytest.raises(
+                        MCPManagerError, match="OAuth authorization failed"
+                    ):
                         await manager._perform_oauth_flow("test-server", auth_config)

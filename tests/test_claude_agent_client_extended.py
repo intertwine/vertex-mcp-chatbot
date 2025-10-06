@@ -43,7 +43,8 @@ class TestClaudeAgentClientExtended:
         mock_sdk_class.side_effect = [TypeError("Invalid kwargs"), Mock()]
 
         with patch(
-            "src.claude_agent_client._resolve_sdk_client_class", return_value=mock_sdk_class
+            "src.claude_agent_client._resolve_sdk_client_class",
+            return_value=mock_sdk_class,
         ):
             with patch("src.config.Config.get_claude_sdk_init_kwargs") as mock_kwargs:
                 mock_kwargs.return_value = {
@@ -65,11 +66,12 @@ class TestClaudeAgentClientExtended:
         # First call raises TypeError, second should work
         mock_sdk_class.side_effect = [
             TypeError("Invalid kwargs"),
-            Mock()  # Success on second call
+            Mock(),  # Success on second call
         ]
 
         with patch(
-            "src.claude_agent_client._resolve_sdk_client_class", return_value=mock_sdk_class
+            "src.claude_agent_client._resolve_sdk_client_class",
+            return_value=mock_sdk_class,
         ):
             with patch("src.config.Config.get_claude_sdk_init_kwargs") as mock_kwargs:
                 mock_kwargs.return_value = {
@@ -130,9 +132,7 @@ class TestClaudeAgentClientExtended:
         client = ClaudeAgentClient(sdk_client=mock_sdk)
         client.history.append({"role": "user", "content": "test"})
 
-        with patch.object(
-            client, "_handle_tool_use", return_value=None
-        ):
+        with patch.object(client, "_handle_tool_use", return_value=None):
             with patch.object(
                 client, "_extract_text_from_message", return_value="response"
             ) as mock_extract:
@@ -395,7 +395,9 @@ class TestClaudeAgentClientExtended:
         """Test send_message uses fallback when sessions attribute exists."""
         mock_sdk = Mock()
         mock_sdk.sessions = Mock()
-        mock_sdk.sessions.send_message = Mock(return_value=Mock(output_text="Fallback response"))
+        mock_sdk.sessions.send_message = Mock(
+            return_value=Mock(output_text="Fallback response")
+        )
 
         client = ClaudeAgentClient(sdk_client=mock_sdk)
         response = client.send_message("Hello")
@@ -428,7 +430,9 @@ class TestClaudeAgentClientExtended:
         client = ClaudeAgentClient(sdk_client=mock_sdk, system_prompt="You are helpful")
         client.history.append({"role": "user", "content": "Hello"})
 
-        with patch.object(client, "_extract_text_from_message", return_value="Response"):
+        with patch.object(
+            client, "_extract_text_from_message", return_value="Response"
+        ):
             client._chat_with_tools()
 
             # Verify system prompt was included
@@ -444,16 +448,15 @@ class TestClaudeAgentClientExtended:
         mock_response.content = [Mock(type="text", text="Response")]
         mock_sdk.messages.create.return_value = mock_response
 
-        client = ClaudeAgentClient(
-            sdk_client=mock_sdk,
-            mcp_manager=mock_manager
-        )
+        client = ClaudeAgentClient(sdk_client=mock_sdk, mcp_manager=mock_manager)
         client.history.append({"role": "user", "content": "Hello"})
 
         with patch.object(
             client, "_get_mcp_tools", return_value=[{"name": "test_tool"}]
         ):
-            with patch.object(client, "_extract_text_from_message", return_value="Response"):
+            with patch.object(
+                client, "_extract_text_from_message", return_value="Response"
+            ):
                 client._chat_with_tools()
 
                 # Verify tools were included

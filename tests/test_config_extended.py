@@ -106,15 +106,21 @@ class TestConfigExtended:
 
     def test_get_claude_vertex_base_url_override(self):
         """Test Claude Vertex base URL with override."""
-        with patch.dict(os.environ, {"CLAUDE_VERTEX_BASE_URL": "https://custom.api.com/"}):
+        with patch.dict(
+            os.environ, {"CLAUDE_VERTEX_BASE_URL": "https://custom.api.com/"}
+        ):
             base_url = Config.get_claude_vertex_base_url()
             assert base_url == "https://custom.api.com"  # Trailing slash removed
 
     def test_get_claude_vertex_base_url_default(self):
         """Test Claude Vertex base URL default construction."""
         with patch.dict(os.environ, {}, clear=True):
-            with patch.object(Config, "get_claude_vertex_project", return_value="test-proj"):
-                with patch.object(Config, "get_claude_vertex_location", return_value="us-central1"):
+            with patch.object(
+                Config, "get_claude_vertex_project", return_value="test-proj"
+            ):
+                with patch.object(
+                    Config, "get_claude_vertex_location", return_value="us-central1"
+                ):
                     base_url = Config.get_claude_vertex_base_url()
                     assert "us-central1-aiplatform.googleapis.com" in base_url
                     assert "test-proj" in base_url
@@ -124,8 +130,7 @@ class TestConfigExtended:
     def test_get_claude_vertex_base_url_with_params(self):
         """Test Claude Vertex base URL with explicit parameters."""
         base_url = Config.get_claude_vertex_base_url(
-            project="explicit-proj",
-            location="europe-west1"
+            project="explicit-proj", location="europe-west1"
         )
         assert "europe-west1-aiplatform.googleapis.com" in base_url
         assert "explicit-proj" in base_url
@@ -192,10 +197,14 @@ class TestConfigExtended:
             with patch("src.config.GoogleAuthRequest", Mock()):
                 with patch.dict(os.environ, {"CLAUDE_VERTEX_ENABLED": "true"}):
                     with patch.object(
-                        Config, "get_claude_vertex_project", return_value="final-project"
+                        Config,
+                        "get_claude_vertex_project",
+                        return_value="final-project",
                     ):
                         with patch.object(
-                            Config, "get_claude_vertex_location", return_value="us-east1"
+                            Config,
+                            "get_claude_vertex_location",
+                            return_value="us-east1",
                         ):
                             kwargs = Config.get_claude_vertex_sdk_kwargs()
 
@@ -203,25 +212,36 @@ class TestConfigExtended:
                             assert "api_key" in kwargs
                             assert kwargs["api_key"] == "test-access-token"
                             assert "default_headers" in kwargs
-                            assert kwargs["default_headers"]["Authorization"] == "Bearer test-access-token"
-                            assert kwargs["default_headers"]["x-goog-user-project"] == "final-project"
+                            assert (
+                                kwargs["default_headers"]["Authorization"]
+                                == "Bearer test-access-token"
+                            )
+                            assert (
+                                kwargs["default_headers"]["x-goog-user-project"]
+                                == "final-project"
+                            )
 
     def test_get_claude_sdk_init_kwargs_with_vertex(self):
         """Test Claude SDK init kwargs when using Vertex."""
         mock_vertex_kwargs = {
             "base_url": "https://vertex.api.com",
             "api_key": "vertex-token",
-            "default_headers": {"Authorization": "Bearer vertex-token"}
+            "default_headers": {"Authorization": "Bearer vertex-token"},
         }
 
-        with patch.object(Config, "get_claude_vertex_sdk_kwargs", return_value=mock_vertex_kwargs):
+        with patch.object(
+            Config, "get_claude_vertex_sdk_kwargs", return_value=mock_vertex_kwargs
+        ):
             kwargs = Config.get_claude_sdk_init_kwargs("custom-model")
 
             assert kwargs["base_url"] == "https://vertex.api.com"
             assert kwargs["api_key"] == "vertex-token"
             assert kwargs["default_model"] == "custom-model"
             assert kwargs["default_headers"]["Authorization"] == "Bearer vertex-token"
-            assert kwargs["default_headers"]["anthropic-version"] == Config.CLAUDE_API_VERSION
+            assert (
+                kwargs["default_headers"]["anthropic-version"]
+                == Config.CLAUDE_API_VERSION
+            )
 
     def test_get_claude_sdk_init_kwargs_with_api_key(self):
         """Test Claude SDK init kwargs with API key."""
@@ -235,11 +255,11 @@ class TestConfigExtended:
 
     def test_get_claude_sdk_init_kwargs_vertex_takes_precedence(self):
         """Test that Vertex API key takes precedence over Anthropic API key."""
-        mock_vertex_kwargs = {
-            "api_key": "vertex-token"
-        }
+        mock_vertex_kwargs = {"api_key": "vertex-token"}
 
-        with patch.object(Config, "get_claude_vertex_sdk_kwargs", return_value=mock_vertex_kwargs):
+        with patch.object(
+            Config, "get_claude_vertex_sdk_kwargs", return_value=mock_vertex_kwargs
+        ):
             with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "anthropic-key"}):
                 kwargs = Config.get_claude_sdk_init_kwargs()
 
@@ -251,16 +271,21 @@ class TestConfigExtended:
         mock_vertex_kwargs = {
             "default_headers": {
                 "Authorization": "Bearer token",
-                "x-custom-header": "custom-value"
+                "x-custom-header": "custom-value",
             }
         }
 
-        with patch.object(Config, "get_claude_vertex_sdk_kwargs", return_value=mock_vertex_kwargs):
+        with patch.object(
+            Config, "get_claude_vertex_sdk_kwargs", return_value=mock_vertex_kwargs
+        ):
             kwargs = Config.get_claude_sdk_init_kwargs()
 
             assert kwargs["default_headers"]["Authorization"] == "Bearer token"
             assert kwargs["default_headers"]["x-custom-header"] == "custom-value"
-            assert kwargs["default_headers"]["anthropic-version"] == Config.CLAUDE_API_VERSION
+            assert (
+                kwargs["default_headers"]["anthropic-version"]
+                == Config.CLAUDE_API_VERSION
+            )
 
     def test_get_claude_sdk_init_kwargs_no_model_override(self):
         """Test default model is used when no override provided."""
@@ -283,4 +308,7 @@ class TestConfigExtended:
                 kwargs = Config.get_claude_sdk_init_kwargs()
 
                 assert "default_headers" in kwargs
-                assert kwargs["default_headers"]["anthropic-version"] == Config.CLAUDE_API_VERSION
+                assert (
+                    kwargs["default_headers"]["anthropic-version"]
+                    == Config.CLAUDE_API_VERSION
+                )

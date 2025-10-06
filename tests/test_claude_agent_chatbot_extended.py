@@ -169,7 +169,9 @@ class TestClaudeAgentChatbotExtended:
         chatbot = ClaudeAgentChatbot()
         chatbot.console = MagicMock()
         chatbot.mcp_manager = MagicMock()
-        chatbot.mcp_manager.connect_server_sync.side_effect = Exception("Connection failed")
+        chatbot.mcp_manager.connect_server_sync.side_effect = Exception(
+            "Connection failed"
+        )
 
         chatbot._mcp_connect("test-server")
 
@@ -182,7 +184,9 @@ class TestClaudeAgentChatbotExtended:
         chatbot = ClaudeAgentChatbot()
         chatbot.console = MagicMock()
         chatbot.mcp_manager = MagicMock()
-        chatbot.mcp_manager.disconnect_server_sync.side_effect = Exception("Disconnect failed")
+        chatbot.mcp_manager.disconnect_server_sync.side_effect = Exception(
+            "Disconnect failed"
+        )
 
         chatbot._mcp_disconnect("test-server")
 
@@ -306,9 +310,7 @@ class TestClaudeAgentChatbotExtended:
             {"name": "test-prompt", "description": "Test"}
         ]
         chatbot.mcp_manager.get_prompt_sync.return_value = {
-            "messages": [
-                {"role": "user", "content": "Prompt content with args"}
-            ]
+            "messages": [{"role": "user", "content": "Prompt content with args"}]
         }
 
         chatbot._mcp_use_prompt("test-prompt", "key=value foo=bar")
@@ -332,9 +334,7 @@ class TestClaudeAgentChatbotExtended:
             {"name": "test-prompt", "description": "Test"}
         ]
         chatbot.mcp_manager.get_prompt_sync.return_value = {
-            "messages": [
-                {"role": "user", "content": {"type": "image", "data": "..."}}
-            ]
+            "messages": [{"role": "user", "content": {"type": "image", "data": "..."}}]
         }
 
         chatbot._mcp_use_prompt("test-prompt", "")

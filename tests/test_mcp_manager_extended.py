@@ -76,7 +76,9 @@ class TestMCPManagerExtended:
                 mock_client_session.return_value.__aenter__ = AsyncMock(
                     return_value=mock_session
                 )
-                mock_client_session.return_value.__aexit__ = AsyncMock(return_value=None)
+                mock_client_session.return_value.__aexit__ = AsyncMock(
+                    return_value=None
+                )
 
                 # Use the session
                 async with manager._create_session("server1") as session:
@@ -273,9 +275,7 @@ class TestMCPManagerExtended:
         with patch.object(
             manager, "_get_prompts_async", new_callable=AsyncMock
         ) as mock_get_prompts:
-            mock_get_prompts.return_value = [
-                {"name": "prompt1", "server": "server1"}
-            ]
+            mock_get_prompts.return_value = [{"name": "prompt1", "server": "server1"}]
 
             results = await manager.broadcast_operation("list_prompts")
 
@@ -323,9 +323,7 @@ class TestMCPManagerExtended:
         manager._active_servers["server1"] = mock_config.get_server("server1")
 
         with patch("asyncio.run") as mock_run:
-            mock_run.return_value = [
-                ("server1", {"tools": [{"name": "tool1"}]})
-            ]
+            mock_run.return_value = [("server1", {"tools": [{"name": "tool1"}]})]
 
             results = manager.broadcast_operation_sync("list_tools")
 
