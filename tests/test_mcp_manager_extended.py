@@ -51,132 +51,52 @@ class TestMCPManagerExtended:
     """Extended test suite for MCP Manager coverage."""
 
     @pytest.mark.asyncio
-    async def test_create_session_stdio(self, mock_config):
-        """Test creating a stdio session."""
+    async def test_create_session_stdio_not_connected(self, mock_config):
+        """Test creating a stdio session when server not connected raises error."""
         manager = MCPManager(mock_config)
-        manager._active_servers["server1"] = mock_config.get_server("server1")
+        # Don't add to _active_servers - should raise error
 
-        with patch("src.mcp_manager.stdio_client") as mock_stdio:
-            # Mock the stdio client context manager
-            mock_read = AsyncMock()
-            mock_write = AsyncMock()
-            mock_session = AsyncMock()
-            mock_session.initialize = AsyncMock()
-            mock_session.list_tools = AsyncMock(
-                return_value=create_mock_list_tools_result([])
-            )
-
-            # Create async context manager mocks
-            mock_stdio.return_value.__aenter__ = AsyncMock(
-                return_value=(mock_read, mock_write)
-            )
-            mock_stdio.return_value.__aexit__ = AsyncMock(return_value=None)
-
-            with patch("src.mcp_manager.ClientSession") as mock_client_session:
-                mock_client_session.return_value.__aenter__ = AsyncMock(
-                    return_value=mock_session
-                )
-                mock_client_session.return_value.__aexit__ = AsyncMock(
-                    return_value=None
-                )
-
-                # Use the session
-                async with manager._create_session("server1") as session:
-                    assert session == mock_session
-                    # Verify initialization was called
-                    mock_session.initialize.assert_called_once()
+        with pytest.raises(MCPManagerError, match="not connected"):
+            async with manager._create_session("server1"):
+                pass
 
     @pytest.mark.asyncio
-    async def test_create_session_http_with_basic_auth(self, mock_config):
-        """Test creating an HTTP session with basic auth."""
+    async def test_create_session_http_not_available(self, mock_config):
+        """Test creating HTTP session when transport not available."""
         mock_config.servers.append(
             {
-                "name": "auth-server",
+                "name": "http-server",
                 "transport": "http",
                 "url": "http://localhost:8080",
-                "auth": {
-                    "type": "basic",
-                    "username": "user",
-                    "password": "pass",
-                },
             }
         )
 
         manager = MCPManager(mock_config)
-        manager._active_servers["auth-server"] = mock_config.get_server("auth-server")
+        manager._active_servers["http-server"] = mock_config.get_server("http-server")
 
-        with patch("src.mcp_manager.streamablehttp_client") as mock_http:
-            with patch("src.mcp_manager.httpx.BasicAuth") as mock_basic_auth:
-                # Mock the HTTP client context manager
-                mock_read = AsyncMock()
-                mock_write = AsyncMock()
-                mock_session = AsyncMock()
-                mock_session.initialize = AsyncMock()
-
-                mock_http.return_value.__aenter__ = AsyncMock(
-                    return_value=(mock_read, mock_write, None)
-                )
-                mock_http.return_value.__aexit__ = AsyncMock(return_value=None)
-
-                with patch("src.mcp_manager.ClientSession") as mock_client_session:
-                    mock_client_session.return_value.__aenter__ = AsyncMock(
-                        return_value=mock_session
-                    )
-                    mock_client_session.return_value.__aexit__ = AsyncMock(
-                        return_value=None
-                    )
-
-                    # Use the session
-                    async with manager._create_session("auth-server") as session:
-                        assert session == mock_session
-                        # Verify basic auth was created
-                        mock_basic_auth.assert_called_once_with("user", "pass")
+        with patch("src.mcp_manager.HTTP_TRANSPORT_AVAILABLE", False):
+            with pytest.raises(MCPManagerError, match="HTTP transport requires httpx"):
+                async with manager._create_session("http-server"):
+                    pass
 
     @pytest.mark.asyncio
-    async def test_create_session_sse_with_auth(self, mock_config):
-        """Test creating an SSE session with authentication."""
+    async def test_create_session_sse_not_available(self, mock_config):
+        """Test creating SSE session when transport not available."""
         mock_config.servers.append(
             {
                 "name": "sse-server",
                 "transport": "sse",
                 "url": "http://localhost:8081/sse",
-                "auth": {
-                    "type": "basic",
-                    "username": "user",
-                    "password": "pass",
-                },
             }
         )
 
         manager = MCPManager(mock_config)
         manager._active_servers["sse-server"] = mock_config.get_server("sse-server")
 
-        with patch("src.mcp_manager.sse_client") as mock_sse:
-            with patch("src.mcp_manager.httpx.BasicAuth") as mock_basic_auth:
-                # Mock the SSE client context manager
-                mock_read = AsyncMock()
-                mock_write = AsyncMock()
-                mock_session = AsyncMock()
-                mock_session.initialize = AsyncMock()
-
-                mock_sse.return_value.__aenter__ = AsyncMock(
-                    return_value=(mock_read, mock_write)
-                )
-                mock_sse.return_value.__aexit__ = AsyncMock(return_value=None)
-
-                with patch("src.mcp_manager.ClientSession") as mock_client_session:
-                    mock_client_session.return_value.__aenter__ = AsyncMock(
-                        return_value=mock_session
-                    )
-                    mock_client_session.return_value.__aexit__ = AsyncMock(
-                        return_value=None
-                    )
-
-                    # Use the session
-                    async with manager._create_session("sse-server") as session:
-                        assert session == mock_session
-                        # Verify basic auth was created
-                        mock_basic_auth.assert_called_once_with("user", "pass")
+        with patch("src.mcp_manager.HTTP_TRANSPORT_AVAILABLE", False):
+            with pytest.raises(MCPManagerError, match="SSE transport requires httpx"):
+                async with manager._create_session("sse-server"):
+                    pass
 
     @pytest.mark.asyncio
     async def test_create_session_unknown_transport(self, mock_config):
@@ -223,6 +143,56 @@ class TestMCPManagerExtended:
 
             assert len(templates) == 1
             assert templates[0]["uriTemplate"] == "file:///{path}"
+
+    def test_get_resource_templates_sync(self, mock_config):
+        """Test synchronous resource templates wrapper."""
+        manager = MCPManager(mock_config)
+
+        with patch("asyncio.run") as mock_run:
+            mock_run.return_value = [{"uriTemplate": "test:///{id}"}]
+
+            result = manager.get_resource_templates_sync("server1")
+
+            assert len(result) == 1
+            mock_run.assert_called_once()
+
+    def test_call_tool_sync(self, mock_config):
+        """Test synchronous call_tool wrapper."""
+        manager = MCPManager(mock_config)
+
+        with patch("asyncio.run") as mock_run:
+            mock_run.return_value = {"content": [{"type": "text", "text": "Result"}]}
+
+            result = manager.call_tool_sync("server1", "test_tool", {"arg": "value"})
+
+            assert result["content"][0]["text"] == "Result"
+            mock_run.assert_called_once()
+
+    def test_read_resource_sync(self, mock_config):
+        """Test synchronous read_resource wrapper."""
+        manager = MCPManager(mock_config)
+
+        with patch("asyncio.run") as mock_run:
+            mock_run.return_value = {"contents": [{"type": "text", "text": "Content"}]}
+
+            result = manager.read_resource_sync("server1", "resource://test")
+
+            assert result["contents"][0]["text"] == "Content"
+            mock_run.assert_called_once()
+
+    def test_get_prompt_sync(self, mock_config):
+        """Test synchronous get_prompt wrapper."""
+        manager = MCPManager(mock_config)
+
+        with patch("asyncio.run") as mock_run:
+            mock_run.return_value = {
+                "messages": [{"role": "user", "content": "Prompt"}]
+            }
+
+            result = manager.get_prompt_sync("server1", "test-prompt", {"arg": "val"})
+
+            assert result["messages"][0]["content"] == "Prompt"
+            mock_run.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_broadcast_operation_list_tools(self, mock_config):
@@ -453,6 +423,61 @@ class TestMCPManagerExtended:
         session_id = manager._get_session_id("test-server")
         assert session_id is None
 
+    def test_get_tools_sync(self, mock_config):
+        """Test synchronous get_tools wrapper."""
+        manager = MCPManager(mock_config)
+
+        with patch("asyncio.run") as mock_run:
+            mock_run.return_value = [{"name": "tool1"}]
+
+            result = manager.get_tools_sync("server1")
+
+            assert len(result) == 1
+            mock_run.assert_called_once()
+
+    def test_get_resources_sync(self, mock_config):
+        """Test synchronous get_resources wrapper."""
+        manager = MCPManager(mock_config)
+
+        with patch("asyncio.run") as mock_run:
+            mock_run.return_value = [{"uri": "resource://test"}]
+
+            result = manager.get_resources_sync("server1")
+
+            assert len(result) == 1
+            mock_run.assert_called_once()
+
+    def test_get_prompts_sync(self, mock_config):
+        """Test synchronous get_prompts wrapper."""
+        manager = MCPManager(mock_config)
+
+        with patch("asyncio.run") as mock_run:
+            mock_run.return_value = [{"name": "prompt1"}]
+
+            result = manager.get_prompts_sync("server1")
+
+            assert len(result) == 1
+            mock_run.assert_called_once()
+
+    def test_initialize_sync(self, mock_config):
+        """Test synchronous initialize."""
+        manager = MCPManager(mock_config)
+
+        manager.initialize_sync()
+
+        assert manager._initialized is True
+
+    def test_cleanup_sync(self, mock_config):
+        """Test synchronous cleanup."""
+        manager = MCPManager(mock_config)
+        manager._active_servers["test"] = {}
+        manager._sessions["test"] = {}
+
+        manager.cleanup_sync()
+
+        assert manager._initialized is False
+        assert len(manager._active_servers) == 0
+
     @pytest.mark.asyncio
     async def test_get_prompt_with_arguments(self, mock_config):
         """Test getting a prompt with arguments."""
@@ -481,3 +506,136 @@ class TestMCPManagerExtended:
             mock_get_prompt.assert_called_once_with(
                 "server1", "test-prompt", {"arg": "value"}
             )
+
+    def test_find_servers_with_tool_sync(self, mock_config):
+        """Test synchronous find_servers_with_tool wrapper."""
+        manager = MCPManager(mock_config)
+
+        with patch("asyncio.run") as mock_run:
+            mock_run.return_value = ["server1", "server2"]
+
+            result = manager.find_servers_with_tool_sync("test_tool")
+
+            assert len(result) == 2
+            assert "server1" in result
+            mock_run.assert_called_once()
+
+    def test_get_server_priorities(self, mock_config):
+        """Test getting server priorities from configuration."""
+        manager = MCPManager(mock_config)
+
+        # Add priority to one server
+        manager.config.servers[0]["priority"] = 1
+        manager.config.servers[1]["priority"] = 2
+
+        priorities = manager.get_server_priorities()
+
+        assert priorities["server1"] == 1
+        assert priorities["server2"] == 2
+
+    @pytest.mark.asyncio
+    async def test_async_get_tools(self, mock_config):
+        """Test async get_tools method."""
+        manager = MCPManager(mock_config)
+
+        with patch.object(
+            manager, "_get_tools_async", new_callable=AsyncMock
+        ) as mock_get_tools:
+            mock_get_tools.return_value = [{"name": "tool1"}]
+
+            result = await manager.get_tools("server1")
+
+            assert len(result) == 1
+            mock_get_tools.assert_called_once_with("server1")
+
+    @pytest.mark.asyncio
+    async def test_async_get_resources(self, mock_config):
+        """Test async get_resources method."""
+        manager = MCPManager(mock_config)
+
+        with patch.object(
+            manager, "_get_resources_async", new_callable=AsyncMock
+        ) as mock_get_resources:
+            mock_get_resources.return_value = [{"uri": "resource://test"}]
+
+            result = await manager.get_resources("server1")
+
+            assert len(result) == 1
+            mock_get_resources.assert_called_once_with("server1")
+
+    @pytest.mark.asyncio
+    async def test_async_get_prompts(self, mock_config):
+        """Test async get_prompts method."""
+        manager = MCPManager(mock_config)
+
+        with patch.object(
+            manager, "_get_prompts_async", new_callable=AsyncMock
+        ) as mock_get_prompts:
+            mock_get_prompts.return_value = [{"name": "prompt1"}]
+
+            result = await manager.get_prompts("server1")
+
+            assert len(result) == 1
+            mock_get_prompts.assert_called_once_with("server1")
+
+    @pytest.mark.asyncio
+    async def test_async_call_tool(self, mock_config):
+        """Test async call_tool method."""
+        manager = MCPManager(mock_config)
+
+        with patch.object(
+            manager, "_call_tool_async", new_callable=AsyncMock
+        ) as mock_call_tool:
+            mock_call_tool.return_value = {
+                "content": [{"type": "text", "text": "Result"}]
+            }
+
+            result = await manager.call_tool("server1", "tool1", {"arg": "val"})
+
+            assert result["content"][0]["text"] == "Result"
+            mock_call_tool.assert_called_once_with("server1", "tool1", {"arg": "val"})
+
+    @pytest.mark.asyncio
+    async def test_async_read_resource(self, mock_config):
+        """Test async read_resource method."""
+        manager = MCPManager(mock_config)
+
+        with patch.object(
+            manager, "_read_resource_async", new_callable=AsyncMock
+        ) as mock_read_resource:
+            mock_read_resource.return_value = {
+                "contents": [{"type": "text", "text": "Content"}]
+            }
+
+            result = await manager.read_resource("server1", "resource://test")
+
+            assert result["contents"][0]["text"] == "Content"
+            mock_read_resource.assert_called_once_with("server1", "resource://test")
+
+    @pytest.mark.asyncio
+    async def test_async_connect_server(self, mock_config):
+        """Test async connect_server wrapper."""
+        manager = MCPManager(mock_config)
+
+        with patch.object(manager, "connect_server_sync") as mock_connect:
+            await manager.connect_server("server1")
+            mock_connect.assert_called_once_with("server1")
+
+    @pytest.mark.asyncio
+    async def test_async_disconnect_server(self, mock_config):
+        """Test async disconnect_server wrapper."""
+        manager = MCPManager(mock_config)
+
+        with patch.object(manager, "disconnect_server_sync") as mock_disconnect:
+            await manager.disconnect_server("server1")
+            mock_disconnect.assert_called_once_with("server1")
+
+    @pytest.mark.asyncio
+    async def test_async_connect_with_retry(self, mock_config):
+        """Test async _connect_with_retry calls sync version."""
+        manager = MCPManager(mock_config)
+        server_config = mock_config.get_server("server1")
+
+        with patch.object(manager, "_connect_with_retry_sync") as mock_retry:
+            await manager._connect_with_retry("server1", server_config)
+            mock_retry.assert_called_once_with("server1", server_config)

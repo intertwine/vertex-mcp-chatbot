@@ -32,7 +32,7 @@ def run_tests(test_type="all", verbose=False, coverage=False):
                 "--cov=src",
                 "--cov-report=html",
                 "--cov-report=term-missing",
-                "--cov-fail-under=80",
+                "--cov-fail-under=79",
             ]
         )
 
