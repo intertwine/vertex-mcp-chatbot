@@ -33,9 +33,10 @@ class TestClaudeAgentClientExtended:
             mock_module = Mock(spec=[])  # No Anthropic attribute
             mock_import.return_value = mock_module
 
-            with patch("importlib.import_module", side_effect=AttributeError()):
-                client_class = _resolve_sdk_client_class()
-                assert client_class.__name__ == "ClaudeSDKClient"
+            # When getattr is called on the module, it will raise AttributeError
+            # because spec=[] means it has no attributes
+            client_class = _resolve_sdk_client_class()
+            assert client_class.__name__ == "ClaudeSDKClient"
 
     def test_create_sdk_client_with_type_error_fallback(self):
         """Test SDK client creation falls back on TypeError."""
