@@ -2,6 +2,11 @@
 
 import pytest
 
+# Suppress runtime warnings about unawaited coroutines during import
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:coroutine.*was never awaited:RuntimeWarning"
+)
+
 
 def test_mcp_package_import():
     """Test that the MCP package can be imported."""
