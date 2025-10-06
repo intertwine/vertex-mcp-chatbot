@@ -8,6 +8,7 @@ from src.claude_agent_chatbot import ClaudeAgentChatbot
 class TestClaudeAgentChatbot:
     """Unit tests that exercise command handling and messaging."""
 
+    @patch("src.claude_agent_chatbot.MCP_AVAILABLE", False)
     @patch("src.claude_agent_chatbot.MCPConfig")
     @patch("src.claude_agent_chatbot.ClaudeAgentClient")
     def test_initialize_bootstraps_client(self, mock_client_class, mock_mcp_config):
@@ -21,12 +22,12 @@ class TestClaudeAgentChatbot:
         chatbot.console = MagicMock()
         chatbot.initialize()
 
-        mock_client_class.assert_called_once_with(
-            model_name="claude",
-            system_prompt="be nice",
-            sdk_client=None,
-            mcp_servers=mock_config.servers,
-        )
+        # Check that client was created with correct parameters
+        call_kwargs = mock_client_class.call_args[1]
+        assert call_kwargs["model_name"] == "claude"
+        assert call_kwargs["system_prompt"] == "be nice"
+        assert call_kwargs["mcp_servers"] == mock_config.servers
+
         mock_client.ensure_session.assert_called_once_with("be nice")
 
     def test_handle_unknown_command(self):
@@ -95,3 +96,104 @@ class TestClaudeAgentChatbot:
 
         chatbot.initialize.assert_called_once()
         chatbot.client.close.assert_called_once()
+
+    def test_mcp_list_command(self):
+        """Test /mcp list command displays servers."""
+        chatbot = ClaudeAgentChatbot()
+        chatbot.console = MagicMock()
+        chatbot.mcp_manager = MagicMock()
+        chatbot.mcp_manager.list_servers.return_value = [
+            {"name": "filesystem", "transport": "stdio", "connected": True},
+            {"name": "weather", "transport": "http", "connected": False},
+        ]
+
+        chatbot.handle_command("/mcp list")
+
+        chatbot.console.print.assert_called()
+        # Verify it shows both servers
+        call_args = str(chatbot.console.print.call_args_list)
+        assert "filesystem" in call_args
+        assert "weather" in call_args
+
+    def test_mcp_connect_command(self):
+        """Test /mcp connect <server> command."""
+        chatbot = ClaudeAgentChatbot()
+        chatbot.console = MagicMock()
+        chatbot.mcp_manager = MagicMock()
+
+        chatbot.handle_command("/mcp connect test-server")
+
+        chatbot.mcp_manager.connect_server_sync.assert_called_once_with("test-server")
+        chatbot.console.print.assert_called()
+
+    def test_mcp_disconnect_command(self):
+        """Test /mcp disconnect <server> command."""
+        chatbot = ClaudeAgentChatbot()
+        chatbot.console = MagicMock()
+        chatbot.mcp_manager = MagicMock()
+
+        chatbot.handle_command("/mcp disconnect test-server")
+
+        chatbot.mcp_manager.disconnect_server_sync.assert_called_once_with(
+            "test-server"
+        )
+        chatbot.console.print.assert_called()
+
+    def test_mcp_tools_command(self):
+        """Test /mcp tools command lists available tools."""
+        chatbot = ClaudeAgentChatbot()
+        chatbot.console = MagicMock()
+        chatbot.mcp_manager = MagicMock()
+        chatbot.mcp_manager.list_servers.return_value = [
+            {"name": "filesystem", "connected": True}
+        ]
+        chatbot.mcp_manager.get_tools_sync.return_value = [
+            {"name": "list_files", "description": "List files"}
+        ]
+
+        chatbot.handle_command("/mcp tools")
+
+        chatbot.mcp_manager.get_tools_sync.assert_called_once_with("filesystem")
+        chatbot.console.print.assert_called()
+
+    def test_mcp_command_without_manager(self):
+        """Test /mcp commands show error when MCP not available."""
+        chatbot = ClaudeAgentChatbot()
+        chatbot.console = MagicMock()
+        chatbot.mcp_manager = None
+
+        chatbot.handle_command("/mcp list")
+
+        # Should show error message
+        chatbot.console.print.assert_called()
+        call_arg = str(chatbot.console.print.call_args)
+        assert "not available" in call_arg.lower()
+
+    @patch("src.claude_agent_chatbot.MCPConfig")
+    @patch("src.claude_agent_chatbot.MCP_AVAILABLE", True)
+    @patch("src.claude_agent_chatbot.MCPManager")
+    @patch("src.claude_agent_chatbot.ClaudeAgentClient")
+    def test_initialize_with_mcp_manager(
+        self, mock_client_class, mock_manager_class, mock_config_class
+    ):
+        """Test that MCP manager is initialized and passed to client."""
+        mock_config = MagicMock()
+        mock_config.servers = []
+        mock_config_class.return_value = mock_config
+
+        mock_manager = MagicMock()
+        mock_manager_class.return_value = mock_manager
+
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+
+        chatbot = ClaudeAgentChatbot()
+        chatbot.console = MagicMock()
+        chatbot.initialize()
+
+        # Verify MCP manager was created and initialized
+        mock_manager_class.assert_called_once_with(mock_config)
+        mock_manager.initialize_sync.assert_called_once()
+
+        # Verify client received the MCP manager
+        assert mock_client_class.call_args[1]["mcp_manager"] == mock_manager

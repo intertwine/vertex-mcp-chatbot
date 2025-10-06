@@ -32,11 +32,13 @@ class ClaudeAgentClient:
         system_prompt: Optional[str] = None,
         sdk_client=None,
         mcp_servers: Optional[Iterable[Dict[str, Any]]] = None,
+        mcp_manager=None,
     ) -> None:
         self.model_name = model_name or Config.get_default_claude_model()
         self.system_prompt = system_prompt
         self._sdk_client = sdk_client or self._create_sdk_client()
         self._mcp_servers = list(mcp_servers or [])
+        self._mcp_manager = mcp_manager
         self.history: List[Dict[str, Any]] = []
 
     # ------------------------------------------------------------------
@@ -54,7 +56,8 @@ class ClaudeAgentClient:
         except TypeError as exc:
             LOGGER.warning(
                 "Failed to initialize Anthropic client with kwargs %s: %s",
-                init_kwargs.keys(), exc
+                init_kwargs.keys(),
+                exc,
             )
             # Try with minimal kwargs
             minimal_kwargs = {}
@@ -85,6 +88,7 @@ class ClaudeAgentClient:
         """Send a message to Claude and get a response.
 
         Uses the Anthropic Messages API, maintaining conversation history.
+        Supports tool calling via MCP if manager is provided.
         """
         self.ensure_session(system_instruction)
 
@@ -96,11 +100,21 @@ class ClaudeAgentClient:
             # Using fallback stub
             return self._send_with_fallback(message)
 
-        # Using real Anthropic SDK
-        try:
+        # Using real Anthropic SDK - may need multiple turns for tool use
+        return self._chat_with_tools()
+
+    def _chat_with_tools(self) -> str:
+        """Handle conversation with tool calling support."""
+        max_turns = 10  # Prevent infinite loops
+        turn_count = 0
+
+        while turn_count < max_turns:
+            turn_count += 1
+
             # Build messages list from history
-            messages = [{"role": msg["role"], "content": msg["content"]}
-                       for msg in self.history]
+            messages = [
+                {"role": msg["role"], "content": msg["content"]} for msg in self.history
+            ]
 
             # Prepare API call parameters
             params = {
@@ -112,31 +126,142 @@ class ClaudeAgentClient:
             if self.system_prompt:
                 params["system"] = self.system_prompt
 
-            # Call the Messages API
-            response = self._sdk_client.messages.create(**params)
+            # Add MCP tools if available
+            if self._mcp_manager:
+                tools = self._get_mcp_tools()
+                if tools:
+                    params["tools"] = tools
 
-            # Extract text from response
-            text = self._extract_text_from_message(response)
+            try:
+                # Call the Messages API
+                response = self._sdk_client.messages.create(**params)
 
-            # Add assistant response to history
-            self.history.append({"role": "assistant", "content": text})
+                # Check if Claude wants to use tools
+                if response.stop_reason == "tool_use":
+                    # Handle tool calls and continue conversation
+                    tool_results = self._handle_tool_use(response)
+                    if tool_results is None:
+                        # No tools were executed, return the response
+                        break
+                    # Continue loop to send tool results back to Claude
+                    continue
+                else:
+                    # Normal response, extract and return text
+                    text = self._extract_text_from_message(response)
+                    self.history.append(
+                        {"role": "assistant", "content": response.content}
+                    )
+                    return text
 
-            return text
+            except Exception as exc:
+                LOGGER.error("Error calling Claude API: %s", exc)
+                raise
 
-        except Exception as exc:
-            LOGGER.error("Error calling Claude API: %s", exc)
-            raise
+        # If we hit max turns, return the last response
+        return self._extract_text_from_message(response)
 
     def _send_with_fallback(self, message: str) -> str:
         """Send message using fallback stub."""
         session_id = "fallback-session"
         response = self._sdk_client.sessions.send_message(
-            session_id=session_id,
-            content=message
+            session_id=session_id, content=message
         )
         text = getattr(response, "output_text", str(response))
         self.history.append({"role": "assistant", "content": text})
         return text
+
+    def _get_mcp_tools(self) -> List[Dict[str, Any]]:
+        """Get all available MCP tools in Anthropic SDK format."""
+        if not self._mcp_manager:
+            return []
+
+        try:
+            # Get tools from all connected servers
+            mcp_tools = self._mcp_manager.get_tools_sync()
+
+            # Convert to Anthropic tool format
+            anthropic_tools = []
+            for tool in mcp_tools:
+                anthropic_tool = {
+                    "name": tool["name"],
+                    "description": tool.get("description", ""),
+                }
+
+                # Add input schema if available
+                if "inputSchema" in tool:
+                    anthropic_tool["input_schema"] = tool["inputSchema"]
+
+                anthropic_tools.append(anthropic_tool)
+
+            return anthropic_tools
+        except Exception as exc:
+            LOGGER.warning("Failed to get MCP tools: %s", exc)
+            return []
+
+    def _handle_tool_use(self, response: Any) -> Optional[List[Dict[str, Any]]]:
+        """Handle tool use requests from Claude."""
+        if not self._mcp_manager:
+            return None
+
+        # Add assistant response with tool use to history
+        self.history.append({"role": "assistant", "content": response.content})
+
+        # Extract tool use blocks and execute them
+        tool_results = []
+        for block in response.content:
+            if getattr(block, "type", "") == "tool_use":
+                tool_name = block.name
+                tool_input = block.input
+                tool_use_id = block.id
+
+                try:
+                    # Find which server has this tool
+                    server_name = self._mcp_manager.find_best_server_for_tool_sync(
+                        tool_name
+                    )
+                    if not server_name:
+                        raise Exception(f"No server found with tool: {tool_name}")
+
+                    # Call the tool
+                    result = self._mcp_manager.call_tool_sync(
+                        server_name=server_name,
+                        tool_name=tool_name,
+                        arguments=tool_input,
+                    )
+
+                    # Extract content from MCP result
+                    content_text = ""
+                    if hasattr(result, "content"):
+                        for content_item in result.content:
+                            if hasattr(content_item, "text"):
+                                content_text += content_item.text
+                    else:
+                        content_text = str(result)
+
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tool_use_id,
+                            "content": content_text,
+                        }
+                    )
+                except Exception as exc:
+                    LOGGER.error("Tool execution failed for %s: %s", tool_name, exc)
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tool_use_id,
+                            "is_error": True,
+                            "content": f"Error: {str(exc)}",
+                        }
+                    )
+
+        if tool_results:
+            # Add tool results to history as a user message
+            self.history.append({"role": "user", "content": tool_results})
+            return tool_results
+
+        return None
 
     def _extract_text_from_message(self, response: Any) -> str:
         """Extract text from Anthropic Messages API response."""

@@ -89,7 +89,29 @@ class GeminiClient:
             response = self.chat_session.send_message(message)
             return response.text
         except Exception as e:
-            raise RuntimeError(f"Failed to send message: {e}")
+            # Check for authentication errors and provide helpful message
+            error_msg = str(e)
+            if "Reauthentication is needed" in error_msg or "RefreshError" in str(
+                type(e)
+            ):
+                raise RuntimeError(
+                    "Authentication expired. Please run:\n"
+                    "  gcloud auth application-default login"
+                ) from None
+            elif "PermissionDenied" in error_msg or "403" in error_msg:
+                raise RuntimeError(
+                    "Permission denied. Please ensure:\n"
+                    "  1. Vertex AI API is enabled in your GCP project\n"
+                    "  2. Your account has the 'Vertex AI User' role\n"
+                    "  3. You've run: gcloud auth application-default login"
+                ) from None
+            elif "API key" in error_msg:
+                raise RuntimeError(
+                    "Invalid API credentials. Please check your configuration."
+                ) from None
+            else:
+                # Generic error - show the original message
+                raise RuntimeError(f"Failed to send message: {e}") from None
 
     def get_chat_history(self) -> List:
         """Get the current chat history."""

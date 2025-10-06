@@ -7,18 +7,20 @@
 [![Documentation](https://img.shields.io/badge/documentation-purple.svg)](https://modelcontextprotocol.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An interactive command-line chatbot powered by Anthropic's Claude via Google Cloud Vertex AI. The terminal experience is backed by the Claude Agent SDK so you inherit native MCP (Model Context Protocol) tool handling, structured responses, and stateful sessions out of the box. Gemini utilities and helpers remain available for experimentation—launch them with a single flag—but the primary REPL now speaks directly to Claude 4.5 Sonnet by default.
+An interactive command-line chatbot for Google Cloud Vertex AI, supporting both **Anthropic's Claude** and **Google Gemini** models. Choose your preferred AI provider with a simple flag. The chatbot features full MCP (Model Context Protocol) integration with Claude, allowing autonomous tool discovery and execution during conversations. Supports Vertex AI or direct Anthropic API access, with automatic tool calling, multi-turn conversations, and comprehensive error handling.
 
 ## Features
 
 - 🤖 **Interactive Chat Interface**: Clean, intuitive terminal UI with rich formatting
-- 🧠 **Claude Agent SDK**: Launches a full Claude agent with MCP servers, session history, and tool orchestration managed by Anthropic's runtime
+- 🔀 **Multi-Provider Support**: Choose between Claude (default) or Gemini with `--provider` flag
+- 🧠 **Claude via Vertex AI**: Anthropic's Claude Sonnet 4.5 through Google Cloud Vertex AI
+- 🌟 **Gemini Integration**: Google's Gemini 2.5 Flash available as alternative provider
+- 🔧 **Automatic Tool Calling** (Claude): Autonomous MCP tool discovery and execution during conversations
 - 📝 **Markdown Support**: Responses are rendered with proper markdown formatting
-- 📜 **Scrollable Content**: Long responses and conversation history automatically become scrollable with intuitive navigation controls
 - 💾 **Persistent History**: Conversation history saved between sessions on disk
 - 🎨 **Rich Terminal UI**: Colorful, well-formatted output using Rich library
-- 🔧 **Provider & Model Selection**: Choose between the Claude Agent SDK or the legacy Gemini REPL and override individual model identifiers with simple CLI flags
-- 🔌 **MCP Integration**: Claude's built-in MCP support is automatically wired up using your local `mcp_config.json`
+- 🔧 **Flexible Configuration**: Use Vertex AI (with GCP credentials) or direct Anthropic API
+- 🔌 **Full MCP Integration**: Load tools from `mcp_config.json` with automatic tool discovery and execution
 
 ### MCP Features
 
@@ -79,27 +81,30 @@ GOOGLE_CLOUD_LOCATION='us-east1'
 
 ### Basic Usage
 
-Start the chatbot with the default model (`claude-4.5-sonnet`):
+Start the chatbot with the default provider (Claude):
 ```bash
 uv run main.py
 ```
 
-### Using Different Models
+### Choosing Your AI Provider
 
-Start with a different Claude model:
+**Use Claude (default)**:
 ```bash
-uv run main.py --model claude-4-haiku
+uv run main.py                    # Uses Claude Sonnet 4.5
+uv run main.py --model claude-opus-4-1-20250805  # Different Claude model
 ```
 
-### Switching between Claude and Gemini
-
-The Claude Agent SDK currently supports only Anthropic models—Gemini models cannot be loaded through the SDK even on Vertex AI. If you need to chat with Gemini, switch back to the legacy Gemini REPL using the `--provider` flag:
-
+**Use Gemini**:
 ```bash
-uv run main.py --provider gemini
+uv run main.py --provider gemini  # Uses Gemini 2.5 Flash
+uv run main.py --provider gemini --model gemini-2.0-pro  # Different Gemini model
 ```
 
-You can still supply a `--model` override, which is forwarded to the Gemini client. Omitting `--provider` keeps the default Claude 4.5 Sonnet agent experience.
+**Key Differences**:
+- **Claude**: Full MCP tool-calling support with autonomous tool discovery and execution
+- **Gemini**: Fast, efficient responses; MCP servers can be configured but tool calling is manual
+
+Both providers offer the same intuitive terminal interface, markdown rendering, and persistent conversation history.
 
 ### Configuring Claude via Vertex AI
 
@@ -109,14 +114,40 @@ The CLI automatically attempts to run Claude through Google Cloud Vertex AI usin
 - `CLAUDE_VERTEX_PROJECT` – override the GCP project used for billing (`GOOGLE_CLOUD_PROJECT` is used otherwise)
 - `CLAUDE_VERTEX_LOCATION` – override the Vertex region (defaults to `GOOGLE_CLOUD_LOCATION` or `us-east1`)
 - `CLAUDE_VERTEX_BASE_URL` – fully override the Vertex endpoint if you need to point at a proxy
-- `CLAUDE_MODEL` – override the default Claude model name (`claude-4.5-sonnet`)
-- `CLAUDE_API_VERSION` – override the Anthropic API version header sent to the SDK
+- `CLAUDE_MODEL` – override the default Claude model (default: `claude-sonnet-4-5-20250929`)
+- `CLAUDE_API_VERSION` – override the Anthropic API version header (default: `2023-06-01`)
 
 See [docs/claude-agent.md](docs/claude-agent.md) for an end-to-end walkthrough that covers authentication, MCP configuration, and troubleshooting tips when connecting Claude through Vertex AI, plus guidance on when to prefer the legacy Gemini provider.
 
 ### MCP Configuration
 
 To use MCP features, create an `mcp_config.json` file in the project root. See the [MCP User Guide](docs/mcp-guide.md) for detailed configuration instructions and examples.
+
+**Example: Autonomous Tool Usage**
+
+When you connect to an MCP server, Claude automatically sees available tools and can use them during conversations:
+
+```
+You > /mcp connect filesystem
+✅ Connected to MCP server: filesystem
+
+You > Please list the files in the current directory
+
+Claude: The current directory contains the following files:
+  1. CODE_OF_CONDUCT.md (1.3 KB)
+  2. pyproject.toml (1.9 KB) - Python project configuration
+  3. README.md (24.6 KB) - Project documentation
+  4. main.py (1.7 KB) - Main Python script
+  ...
+```
+
+Claude automatically:
+- Discovered the `list_files` tool from the connected MCP server
+- Decided to call it with appropriate parameters
+- Received and processed the results
+- Formatted them into a helpful response
+
+No explicit tool invocation needed - Claude autonomously chooses when and how to use tools!
 
 ### Scrollable Content
 

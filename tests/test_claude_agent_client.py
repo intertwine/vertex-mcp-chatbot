@@ -3,102 +3,252 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from src.claude_agent_client import ClaudeAgentClient
 
 
 class TestClaudeAgentClient:
-    """Unit tests covering core client behaviour."""
+    """Unit tests covering core client behaviour with Anthropic SDK."""
 
-    def test_ensure_session_creates_agent_and_session(self):
-        agent = SimpleNamespace(id="agent-123")
-        session = SimpleNamespace(id="session-456")
-        sdk_client = MagicMock()
-        sdk_client.agents.create.return_value = agent
-        sdk_client.sessions.create.return_value = session
-
-        client = ClaudeAgentClient(sdk_client=sdk_client, model_name="claude-test")
-        client.ensure_session("be helpful")
-
-        sdk_client.agents.create.assert_called_once()
-        sdk_client.sessions.create.assert_called_once_with(agent_id="agent-123")
-        assert client.agent is agent
-        assert client.session is session
-
-    def test_send_message_records_history(self):
-        agent = SimpleNamespace(id="agent-1")
-        session = SimpleNamespace(id="session-1")
+    def test_send_message_basic_flow(self):
+        """Test basic message sending without tools."""
         response = SimpleNamespace(
-            output_text="Hello there!",
             content=[SimpleNamespace(type="text", text="Hello there!")],
+            stop_reason="end_turn",
         )
 
-        sdk_client = MagicMock()
-        sdk_client.agents.create.return_value = agent
-        sdk_client.sessions.create.return_value = session
-        sdk_client.sessions.send_message.return_value = response
+        sdk_client = MagicMock(spec=["messages"])
+        sdk_client.messages.create.return_value = response
 
-        client = ClaudeAgentClient(sdk_client=sdk_client)
+        client = ClaudeAgentClient(sdk_client=sdk_client, model_name="claude-test")
         text = client.send_message("Hi")
 
         assert text == "Hello there!"
-        assert client.history[-2:] == [
+        assert len(client.history) == 2
+        assert client.history[0] == {"role": "user", "content": "Hi"}
+        assert client.history[1]["role"] == "assistant"
+
+    def test_send_message_with_system_prompt(self):
+        """Test that system prompt is passed to API."""
+        response = SimpleNamespace(
+            content=[SimpleNamespace(type="text", text="Response")],
+            stop_reason="end_turn",
+        )
+
+        sdk_client = MagicMock(spec=["messages"])
+        sdk_client.messages.create.return_value = response
+
+        client = ClaudeAgentClient(
+            sdk_client=sdk_client,
+            system_prompt="Be helpful",
+        )
+        client.send_message("Hi")
+
+        # Verify system prompt was passed
+        call_kwargs = sdk_client.messages.create.call_args[1]
+        assert call_kwargs["system"] == "Be helpful"
+
+    def test_get_mcp_tools_without_manager(self):
+        """Test that no tools are returned when no MCP manager."""
+        sdk_client = MagicMock()
+        client = ClaudeAgentClient(sdk_client=sdk_client)
+
+        tools = client._get_mcp_tools()
+        assert tools == []
+
+    def test_get_mcp_tools_with_manager(self):
+        """Test MCP tools are converted to Anthropic format."""
+        mcp_tools = [
+            {
+                "name": "list_files",
+                "description": "List files in directory",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"path": {"type": "string"}},
+                },
+            }
+        ]
+
+        mcp_manager = MagicMock()
+        mcp_manager.get_tools_sync.return_value = mcp_tools
+
+        sdk_client = MagicMock()
+        client = ClaudeAgentClient(sdk_client=sdk_client, mcp_manager=mcp_manager)
+
+        tools = client._get_mcp_tools()
+
+        assert len(tools) == 1
+        assert tools[0]["name"] == "list_files"
+        assert tools[0]["description"] == "List files in directory"
+        assert "input_schema" in tools[0]
+
+    def test_tool_calling_flow(self):
+        """Test complete tool calling flow."""
+        # First response: Claude wants to use a tool
+        tool_use_response = SimpleNamespace(
+            content=[
+                SimpleNamespace(type="text", text="Let me check that"),
+                SimpleNamespace(
+                    type="tool_use",
+                    name="list_files",
+                    input={"directory": "."},
+                    id="tool_123",
+                ),
+            ],
+            stop_reason="tool_use",
+        )
+
+        # Second response: Claude responds with tool results
+        final_response = SimpleNamespace(
+            content=[SimpleNamespace(type="text", text="Here are the files...")],
+            stop_reason="end_turn",
+        )
+
+        sdk_client = MagicMock(spec=["messages"])
+        sdk_client.messages.create.side_effect = [tool_use_response, final_response]
+
+        # Mock MCP manager
+        mcp_manager = MagicMock()
+        mcp_manager.get_tools_sync.return_value = [
+            {"name": "list_files", "description": "List files"}
+        ]
+        mcp_manager.find_best_server_for_tool_sync.return_value = "filesystem"
+        mcp_manager.call_tool_sync.return_value = SimpleNamespace(
+            content=[SimpleNamespace(text="file1.txt\nfile2.txt")]
+        )
+
+        client = ClaudeAgentClient(sdk_client=sdk_client, mcp_manager=mcp_manager)
+        text = client.send_message("List files")
+
+        # Verify tool was called
+        mcp_manager.call_tool_sync.assert_called_once_with(
+            server_name="filesystem",
+            tool_name="list_files",
+            arguments={"directory": "."},
+        )
+
+        # Verify we got the final response
+        assert text == "Here are the files..."
+
+    def test_tool_calling_error_handling(self):
+        """Test that tool errors are handled gracefully."""
+        tool_use_response = SimpleNamespace(
+            content=[
+                SimpleNamespace(
+                    type="tool_use",
+                    name="broken_tool",
+                    input={},
+                    id="tool_456",
+                ),
+            ],
+            stop_reason="tool_use",
+        )
+
+        final_response = SimpleNamespace(
+            content=[SimpleNamespace(type="text", text="Tool failed")],
+            stop_reason="end_turn",
+        )
+
+        sdk_client = MagicMock(spec=["messages"])
+        sdk_client.messages.create.side_effect = [tool_use_response, final_response]
+
+        mcp_manager = MagicMock()
+        mcp_manager.get_tools_sync.return_value = [
+            {"name": "broken_tool", "description": "Broken"}
+        ]
+        mcp_manager.find_best_server_for_tool_sync.return_value = "server"
+        mcp_manager.call_tool_sync.side_effect = Exception("Tool execution failed")
+
+        client = ClaudeAgentClient(sdk_client=sdk_client, mcp_manager=mcp_manager)
+        text = client.send_message("Use broken tool")
+
+        # Should still return a response even though tool failed
+        assert text == "Tool failed"
+
+    def test_reset_session_clears_history(self):
+        """Test that reset_session clears conversation history."""
+        sdk_client = MagicMock()
+        client = ClaudeAgentClient(sdk_client=sdk_client)
+
+        client.history = [
             {"role": "user", "content": "Hi"},
-            {"role": "assistant", "content": "Hello there!"},
+            {"role": "assistant", "content": "Hello"},
         ]
 
-    def test_reset_session_recreates_agent(self):
-        sdk_client = MagicMock()
-        sdk_client.agents.create.side_effect = [
-            SimpleNamespace(id="agent-old"),
-            SimpleNamespace(id="agent-new"),
-        ]
-        sdk_client.sessions.create.side_effect = [
-            SimpleNamespace(id="session-old"),
-            SimpleNamespace(id="session-new"),
-        ]
+        client.reset_session()
 
-        client = ClaudeAgentClient(sdk_client=sdk_client)
-        client.ensure_session("prompt one")
-        assert client.agent.id == "agent-old"
+        assert len(client.history) == 0
 
-        client.reset_session("prompt two")
+    def test_fallback_stub_is_used_when_no_sdk(self):
+        """Test that fallback stub works when Anthropic SDK not available."""
+        # Create a mock that looks like the fallback stub
+        fallback_client = MagicMock()
+        fallback_client.sessions.send_message.return_value = SimpleNamespace(
+            output_text="Echo: test"
+        )
 
-        assert client.agent.id == "agent-new"
-        assert client.session.id == "session-new"
-
-    def test_extract_text_from_dict_response(self):
-        sdk_client = MagicMock()
-        sdk_client.agents.create.return_value = {"id": "agent"}
-        sdk_client.sessions.create.return_value = {"id": "session"}
-        sdk_client.sessions.send_message.return_value = {"output_text": "Hi"}
-
-        client = ClaudeAgentClient(sdk_client=sdk_client)
+        client = ClaudeAgentClient(sdk_client=fallback_client)
         text = client.send_message("test")
-        assert text == "Hi"
 
-    @patch("src.claude_agent_client.Config.get_claude_sdk_init_kwargs", return_value={})
-    def test_fallback_client_used_when_sdk_missing(self, mock_config_kwargs):
-        with patch("src.claude_agent_client._resolve_sdk_client_class") as resolver:
-            resolver.return_value = MagicMock()
-            client = ClaudeAgentClient(model_name="test")
-            resolver.assert_called_once()
-            mock_config_kwargs.assert_called_once_with("test")
-            assert client.model_name == "test"
+        assert text == "Echo: test"
+        fallback_client.sessions.send_message.assert_called_once()
 
-    def test_create_sdk_client_uses_config_kwargs(self):
-        sdk_instance = MagicMock()
+    @patch("src.claude_agent_client.Config.get_claude_sdk_init_kwargs")
+    @patch("src.claude_agent_client._resolve_sdk_client_class")
+    def test_sdk_initialization_with_config(self, mock_resolver, mock_config):
+        """Test SDK client initialization uses config."""
+        mock_config.return_value = {
+            "api_key": "test-key",
+            "base_url": "https://test.com",
+            "default_model": "claude-test",
+        }
+        mock_sdk_class = MagicMock()
+        mock_resolver.return_value = mock_sdk_class
 
-        with (
-            patch(
-                "src.claude_agent_client._resolve_sdk_client_class",
-                return_value=MagicMock(return_value=sdk_instance),
-            ) as resolver,
-            patch(
-                "src.claude_agent_client.Config.get_claude_sdk_init_kwargs",
-                return_value={"default_model": "claude-4.5-sonnet", "api_key": "token"},
-            ) as config_kwargs,
-        ):
-            client = ClaudeAgentClient(model_name=None)
-            resolver.assert_called_once()
-            config_kwargs.assert_called_once_with("claude-4.5-sonnet")
-            assert client._sdk_client is sdk_instance
+        client = ClaudeAgentClient(model_name="claude-test")
+
+        mock_config.assert_called_once_with("claude-test")
+        # Verify default_model is removed before passing to Anthropic SDK
+        call_kwargs = mock_sdk_class.call_args[1]
+        assert "default_model" not in call_kwargs
+
+    def test_multiple_tool_calls_in_sequence(self):
+        """Test handling multiple sequential tool calls."""
+        # Response 1: First tool use
+        response1 = SimpleNamespace(
+            content=[SimpleNamespace(type="tool_use", name="tool1", input={}, id="t1")],
+            stop_reason="tool_use",
+        )
+
+        # Response 2: Second tool use
+        response2 = SimpleNamespace(
+            content=[SimpleNamespace(type="tool_use", name="tool2", input={}, id="t2")],
+            stop_reason="tool_use",
+        )
+
+        # Response 3: Final answer
+        response3 = SimpleNamespace(
+            content=[SimpleNamespace(type="text", text="Done!")],
+            stop_reason="end_turn",
+        )
+
+        sdk_client = MagicMock(spec=["messages"])
+        sdk_client.messages.create.side_effect = [response1, response2, response3]
+
+        mcp_manager = MagicMock()
+        mcp_manager.get_tools_sync.return_value = [
+            {"name": "tool1", "description": "Tool 1"},
+            {"name": "tool2", "description": "Tool 2"},
+        ]
+        mcp_manager.find_best_server_for_tool_sync.return_value = "server"
+        mcp_manager.call_tool_sync.return_value = SimpleNamespace(
+            content=[SimpleNamespace(text="result")]
+        )
+
+        client = ClaudeAgentClient(sdk_client=sdk_client, mcp_manager=mcp_manager)
+        text = client.send_message("Do task")
+
+        # Should have called both tools
+        assert mcp_manager.call_tool_sync.call_count == 2
+        assert text == "Done!"

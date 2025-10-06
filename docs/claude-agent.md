@@ -1,6 +1,6 @@
 # Claude Agent SDK + Vertex AI Guide
 
-This guide walks through running the terminal REPL against Anthropic's Claude Agent SDK using Google Cloud Vertex AI as the transport. The runtime inside the SDK handles Model Context Protocol (MCP) tools, prompt templates, and resource access automatically, so most of the heavy lifting happens on Anthropic's side once an agent session is established. When you need Gemini instead, the CLI now offers an opt-in flag that switches back to the legacy Gemini REPL—see [Switching providers](#8-switching-providers) for details.
+This guide walks through running the terminal REPL with Anthropic's Claude using Google Cloud Vertex AI. The chatbot integrates the Anthropic SDK with full MCP (Model Context Protocol) support, allowing Claude to autonomously discover and use tools from connected MCP servers during conversations. Claude handles tool discovery, execution, and multi-turn conversations automatically. The chatbot also supports Google Gemini as an alternative provider—see [Switching providers](#8-switching-providers) for details.
 
 ## 1. Enable Anthropic Claude on Vertex AI
 
@@ -27,12 +27,12 @@ Create a `.env` file (the project ships with `.env.example`) and populate the va
 ```bash
 GOOGLE_CLOUD_PROJECT="my-vertex-project"
 GOOGLE_CLOUD_LOCATION="us-east5"
-CLAUDE_MODEL="claude-4.5-sonnet"
+CLAUDE_MODEL="claude-sonnet-4-5-20250929"  # Latest: Claude Sonnet 4.5 (Sept 29, 2025)
 # Optional overrides
 CLAUDE_VERTEX_ENABLED="true"
 CLAUDE_VERTEX_PROJECT="my-vertex-project"  # Use a different billing project if needed
 CLAUDE_VERTEX_LOCATION="us-east5"         # Override the region the SDK should call
-CLAUDE_API_VERSION="2025-02-19"           # Pin the Anthropic API version header
+CLAUDE_API_VERSION="2023-06-01"           # Anthropic API version (latest stable)
 ```
 
 If you need to route through a proxy or private service, set `CLAUDE_VERTEX_BASE_URL` to the fully-qualified Anthropic publisher endpoint. Otherwise the helper builds the correct URL automatically:

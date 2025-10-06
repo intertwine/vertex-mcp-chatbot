@@ -32,8 +32,8 @@ class Config:
 
     DEFAULT_MODEL = "gemini-2.5-flash"
 
-    CLAUDE_DEFAULT_MODEL = os.getenv("CLAUDE_MODEL", "claude-4.5-sonnet")
-    CLAUDE_API_VERSION = os.getenv("CLAUDE_API_VERSION", "2025-02-19")
+    CLAUDE_DEFAULT_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-5-20250929")
+    CLAUDE_API_VERSION = os.getenv("CLAUDE_API_VERSION", "2023-06-01")
     CLAUDE_VERTEX_API_VERSION = os.getenv("CLAUDE_VERTEX_API_VERSION", "v1")
     CLAUDE_VERTEX_ENABLED = os.getenv("CLAUDE_VERTEX_ENABLED", "true")
 

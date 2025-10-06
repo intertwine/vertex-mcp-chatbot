@@ -198,8 +198,8 @@ class TestEnvironmentVariableSubstitution:
         config_file = tmp_path / "mcp_config.json"
         config_file.write_text(json.dumps(config_data))
 
-        # Test with env var present
-        with patch.dict(os.environ, {"API_KEY": "real_key"}):
+        # Test with env var present (clear DEBUG to test default)
+        with patch.dict(os.environ, {"API_KEY": "real_key"}, clear=True):
             config = MCPConfig(config_file)
             server = config.get_server("test-server")
             assert server["env"]["API_KEY"] == "real_key"

@@ -1531,7 +1531,11 @@ class GeminiChatbot:
                     import traceback
 
                     traceback.print_exc()
+            except RuntimeError as e:
+                # RuntimeErrors are user-facing errors with helpful messages
+                self.console.print(f"\n[bold red]Error: {e}[/bold red]")
             except Exception as e:
+                # Other exceptions show full traceback for debugging
                 self.console.print(f"\n[bold red]Error: {e}[/bold red]")
                 import traceback
 
