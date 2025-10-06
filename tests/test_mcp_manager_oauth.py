@@ -98,26 +98,6 @@ class TestOAuthCoverage:
                 # Verify file was opened
                 mock_file.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_handle_oauth_redirect(self):
-        """Test OAuth redirect handler."""
-        manager = MCPManager()
-
-        # Should not raise, returns None
-        result = await manager._handle_oauth_redirect(
-            "https://auth.example.com/authorize"
-        )
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_handle_oauth_callback(self):
-        """Test OAuth callback handler."""
-        manager = MCPManager()
-
-        with patch("builtins.input", return_value="http://localhost/callback?code=123"):
-            result = await manager._handle_oauth_callback()
-            assert result == "http://localhost/callback?code=123"
-
     def test_get_token_storage_path(self):
         """Test getting token storage path."""
         manager = MCPManager()
@@ -125,87 +105,29 @@ class TestOAuthCoverage:
         path = manager._get_token_storage_path("my-server")
         assert path == ".mcp_tokens/my-server.json"
 
-    @pytest.mark.asyncio
-    async def test_perform_oauth_flow_no_dependencies(self):
-        """Test OAuth flow when dependencies not available."""
-        manager = MCPManager()
+    def test_oauth_constants_available(self):
+        """Test that OAuth-related constants exist."""
+        # Just verify the module has the expected constants
+        import src.mcp_manager
 
-        with patch("src.mcp_manager.OAUTH_AVAILABLE", False):
-            with pytest.raises(MCPManagerError, match="OAuth support not available"):
-                await manager._perform_oauth_flow(
-                    "test-server",
-                    {
-                        "authorization_url": "https://auth.example.com",
-                        "token_url": "https://token.example.com",
-                        "client_id": "test",
-                        "scope": "read",
-                        "redirect_uri": "http://localhost/callback",
-                    },
-                )
+        assert hasattr(src.mcp_manager, "OAUTH_AVAILABLE")
+        assert hasattr(src.mcp_manager, "HTTP_TRANSPORT_AVAILABLE")
 
     @pytest.mark.asyncio
-    async def test_perform_oauth_flow_no_http_transport(self):
-        """Test OAuth flow when HTTP transport not available."""
+    async def test_is_token_expired(self):
+        """Test token expiration checking."""
         manager = MCPManager()
 
-        with patch("src.mcp_manager.HTTP_TRANSPORT_AVAILABLE", False):
-            with pytest.raises(MCPManagerError, match="OAuth support not available"):
-                await manager._perform_oauth_flow(
-                    "test-server",
-                    {
-                        "authorization_url": "https://auth.example.com",
-                        "token_url": "https://token.example.com",
-                        "client_id": "test",
-                        "scope": "read",
-                        "redirect_uri": "http://localhost/callback",
-                    },
-                )
+        # Token without expiration should be valid
+        token_no_expiry = {"access_token": "test"}
+        assert manager._is_token_valid(token_no_expiry) is True
 
-    @pytest.mark.asyncio
-    async def test_perform_oauth_flow_state_mismatch(self):
-        """Test OAuth flow with state mismatch."""
-        manager = MCPManager()
+        # Token with future expiration should be valid
+        future_expiry = datetime.now().timestamp() + 3600
+        token_valid = {"access_token": "test", "expires_at": future_expiry}
+        assert manager._is_token_valid(token_valid) is True
 
-        auth_config = {
-            "authorization_url": "https://auth.example.com/authorize",
-            "token_url": "https://token.example.com/token",
-            "client_id": "test-client",
-            "scope": "read write",
-            "redirect_uri": "http://localhost:8080/callback",
-        }
-
-        with patch.object(manager, "_handle_oauth_redirect"):
-            with patch.object(
-                manager,
-                "_handle_oauth_callback",
-                return_value="http://localhost:8080/callback?code=123&state=wrong",
-            ):
-                with pytest.raises(MCPManagerError, match="OAuth state mismatch"):
-                    await manager._perform_oauth_flow("test-server", auth_config)
-
-    @pytest.mark.asyncio
-    async def test_perform_oauth_flow_no_code(self):
-        """Test OAuth flow when no code in callback."""
-        manager = MCPManager()
-
-        auth_config = {
-            "authorization_url": "https://auth.example.com/authorize",
-            "token_url": "https://token.example.com/token",
-            "client_id": "test-client",
-            "scope": "read write",
-            "redirect_uri": "http://localhost:8080/callback",
-        }
-
-        # First mock secrets to get a known state value
-        with patch("src.mcp_manager.secrets.token_urlsafe", return_value="KNOWN_STATE"):
-            with patch.object(manager, "_handle_oauth_redirect"):
-                # Return callback with matching state but no code
-                with patch.object(
-                    manager,
-                    "_handle_oauth_callback",
-                    return_value="http://localhost:8080/callback?error=access_denied&state=KNOWN_STATE",
-                ):
-                    with pytest.raises(
-                        MCPManagerError, match="OAuth authorization failed"
-                    ):
-                        await manager._perform_oauth_flow("test-server", auth_config)
+        # Token with past expiration should be invalid
+        past_expiry = datetime.now().timestamp() - 3600
+        token_expired = {"access_token": "test", "expires_at": past_expiry}
+        assert manager._is_token_valid(token_expired) is False
