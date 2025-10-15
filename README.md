@@ -35,6 +35,27 @@ The chatbot includes comprehensive MCP (Model Context Protocol) support:
 - ✅ **Reliability**: Automatic retry with exponential backoff
 - ✅ **Priority System**: Smart conflict resolution when servers offer similar tools
 
+## Quick Start
+
+```bash
+# 1. Clone and setup
+git clone https://github.com/intertwine/vertex-mcp-chatbot.git
+cd vertex-mcp-chatbot
+make setup            # Install dependencies and create .env
+
+# 2. Configure (edit .env file with your GCP project settings)
+nano .env             # or use your preferred editor
+
+# 3. Authenticate and run
+make auth             # Authenticate with Google Cloud
+make run              # Start the chatbot!
+```
+
+For all available commands, run:
+```bash
+make help
+```
+
 ## Prerequisites
 
 - Python 3.10 or higher
@@ -50,31 +71,34 @@ git clone https://github.com/intertwine/vertex-mcp-chatbot.git
 cd vertex-mcp-chatbot
 ```
 
-2. Install dependencies with uv (creates virtual environment automatically):
+2. Run the quick setup (installs dependencies and creates .env file):
 ```bash
-uv sync
+make setup
 ```
+> This runs `uv sync` and copies `.env.example` to `.env`
 
-3. (OPTIONAL) Activate the virtual environment manually:
-```bash
-source .venv/bin/activate
-```
-> **Note**: When using `uv run`, the virtual environment is automatically activated, so manual activation is typically not required.
-
-4. Authenticate with Google Cloud (Application Default Credentials):
-```bash
-gcloud auth application-default login
-```
-
-5. (REQUIRED) Set up environment variables:
-```bash
-cp .env.example .env
-```
-
-You must edit `.env` to override default project settings:
+3. Edit `.env` to override default project settings:
 ```bash
 GOOGLE_CLOUD_PROJECT='your-gcp-project-id'
 GOOGLE_CLOUD_LOCATION='us-east1'
+```
+
+4. Authenticate with Google Cloud:
+```bash
+make auth
+```
+> This runs `gcloud auth application-default login`
+
+**Alternative manual setup:**
+```bash
+# Install dependencies manually
+uv sync
+
+# Copy environment file
+cp .env.example .env
+
+# Authenticate manually
+gcloud auth application-default login
 ```
 
 ## Usage
@@ -83,21 +107,30 @@ GOOGLE_CLOUD_LOCATION='us-east1'
 
 Start the chatbot with the default provider (Claude):
 ```bash
-uv run main.py
+make run
 ```
 
 ### Choosing Your AI Provider
 
 **Use Claude (default)**:
 ```bash
-uv run main.py                    # Uses Claude Sonnet 4.5
-uv run main.py --model claude-opus-4-1-20250805  # Different Claude model
+make run              # Uses Claude Sonnet 4.5
+make run-claude       # Same as above
+make run-opus         # Uses Claude Opus 4.1
 ```
 
 **Use Gemini**:
 ```bash
-uv run main.py --provider gemini  # Uses Gemini 2.5 Flash
-uv run main.py --provider gemini --model gemini-2.0-pro  # Different Gemini model
+make run-gemini       # Uses Gemini 2.5 Flash
+make run-gemini-pro   # Uses Gemini 2.5 Pro
+```
+
+**Alternative (direct uv commands)**:
+```bash
+uv run main.py                    # Claude Sonnet 4.5 (default)
+uv run main.py --model claude-opus-4-1-20250805  # Claude Opus
+uv run main.py --provider gemini  # Gemini 2.5 Flash
+uv run main.py --provider gemini --model gemini-2.5-pro  # Gemini 2.5 Pro
 ```
 
 **Key Differences**:
@@ -493,52 +526,44 @@ This project includes a comprehensive test suite with 190+ tests covering all fu
 **Quick test run:**
 ```bash
 # Install dev dependencies (includes pytest-cov for coverage)
-uv sync --extra dev
+make install-dev
 
-# Run all tests (including example servers)
-uv run pytest tests/ -v
+# Run all tests
+make test
 ```
 
-**Using the custom test runner:**
+**Testing commands:**
 ```bash
-# Run all tests
-uv run python scripts/run_tests.py
-
-# Run with verbose output
-uv run python scripts/run_tests.py --verbose
-
-# Run with coverage report
-uv run python scripts/run_tests.py --coverage
-
-# Run only unit tests
-uv run python scripts/run_tests.py --unit
-
-# Run only integration tests
-uv run python scripts/run_tests.py --integration
-
-# Run specific test files
-uv run python scripts/run_tests.py tests/test_config.py tests/test_main.py
+make test             # Run all tests with pytest
+make test-v           # Run tests with verbose output
+make test-cov         # Run tests with coverage report
+make test-unit        # Run only unit tests
+make test-int         # Run only integration tests
 ```
 
 **Example MCP Server Tests:**
 ```bash
-# Run all example server tests
-uv run python scripts/run_example_tests.py
+make test-examples    # Run all example server tests
+make test-examples-v  # Run with verbose output
+make test-examples-cov # Run with coverage
+make test-filesystem  # Run only filesystem server tests
+make test-weather     # Run only weather server tests
+make server-check     # Check server health
+```
 
-# Run with verbose output
-uv run python scripts/run_example_tests.py --verbose
+**Alternative (direct uv commands):**
+```bash
+# Run all tests
+uv run pytest tests/ -v
 
-# Run with coverage
-uv run python scripts/run_example_tests.py --coverage
+# Using the custom test runner
+uv run python scripts/run_tests.py --verbose
+uv run python scripts/run_tests.py --coverage
+uv run python scripts/run_tests.py --unit
 
-# Run only filesystem server tests
+# Example server tests
 uv run python scripts/run_example_tests.py --filesystem
-
-# Run only weather server tests
 uv run python scripts/run_example_tests.py --weather
-
-# Check server health
-uv run python scripts/run_example_tests.py --check
 ```
 
 ### Test Categories
@@ -614,26 +639,35 @@ To extend or modify the chatbot:
 
 ### Development Workflow
 ```bash
-# Install dev dependencies
-uv sync --extra dev
-
-# Install pre-commit hooks (one-time setup)
-uv run pre-commit install
+# Set up development environment
+make dev-setup        # Installs deps + pre-commit hooks
 
 # Run tests during development
+make test             # Run all tests
+make test-cov         # Run with coverage report
+
+# Code quality
+make format           # Format code with black and isort
+make lint             # Run flake8 linting
+make pre-commit-run   # Run all pre-commit hooks
+
+# Dependency management
+make add PKG=requests      # Add a new dependency
+make add-dev PKG=pytest    # Add a dev dependency
+make sync             # Sync dependencies from pyproject.toml
+
+# Clean up
+make clean            # Remove Python cache files
+make clean-all        # Remove cache + virtual environment
+```
+
+**Alternative (direct uv commands):**
+```bash
+uv sync --extra dev
+uv run pre-commit install
 uv run pytest tests/ -v --tb=short
-
-# Run tests with coverage
-uv run python scripts/run_tests.py --coverage
-
-# Format code manually (or let pre-commit do it automatically)
 uv run black src/ tests/
 uv run isort src/ tests/
-
-# Run all pre-commit hooks manually
-uv run pre-commit run --all-files
-
-# Lint code
 uv run flake8 src/ tests/
 ```
 

@@ -28,7 +28,7 @@ try:
     import secrets
     import webbrowser
     from datetime import datetime, timedelta
-    from urllib.parse import parse_qs, urlparse
+    from urllib.parse import parse_qs, quote, urlparse
 
     from rich.console import Console
 
@@ -767,7 +767,11 @@ class MCPManager:
             auth_url += "&"
         else:
             auth_url += "?"
-        auth_url += "&".join(f"{k}={v}" for k, v in auth_params.items())
+        # Properly URL-encode each parameter value
+        encoded_params = [
+            f"{k}={quote(str(v), safe='')}" for k, v in auth_params.items()
+        ]
+        auth_url += "&".join(encoded_params)
 
         # Display the URL to the user
         await self._handle_oauth_redirect(auth_url)
