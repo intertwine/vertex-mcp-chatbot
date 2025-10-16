@@ -263,8 +263,12 @@ class TestMCPRetry:
     @patch("time.sleep")
     def test_retry_logging(self, mock_sleep, mock_run, retry_config, caplog):
         """Test that retries are properly logged."""
+        import logging
+
         # Set log level to capture INFO messages
         caplog.set_level("INFO")
+        # Also set the logger level to ensure INFO messages are processed
+        logging.getLogger("src.mcp_manager").setLevel(logging.INFO)
         manager = MCPManager(retry_config)
 
         # Track call counts for logging test

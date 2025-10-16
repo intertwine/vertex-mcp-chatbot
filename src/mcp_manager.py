@@ -2,7 +2,9 @@
 
 import asyncio
 import logging
+import os
 import random
+import sys
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -24,7 +26,6 @@ try:
     import base64
     import hashlib
     import json
-    import os
     import secrets
     import webbrowser
     from datetime import datetime, timedelta
@@ -50,14 +51,16 @@ class MCPManagerError(Exception):
 class MCPManager:
     """Simplified MCP client manager that creates sessions on demand."""
 
-    def __init__(self, config: Optional[MCPConfig] = None):
+    def __init__(self, config: Optional[MCPConfig] = None, quiet_mode: bool = False):
         """Initialize MCP manager.
 
         Args:
             config: MCP configuration. If not provided, will create default.
+            quiet_mode: If True, suppress subprocess output from MCP servers.
         """
         self.config = config or MCPConfig()
         self._active_servers: Dict[str, Dict[str, Any]] = {}  # Track server configs
+        self._quiet_mode = quiet_mode
         # Add these for compatibility with tests
         self._sessions = {}  # Mock sessions tracking
         self._transports = {}
@@ -195,10 +198,26 @@ class MCPManager:
                 command=command[0], args=command[1:] if len(command) > 1 else None
             )
 
-            async with stdio_client(server_params) as (read, write):
-                async with ClientSession(read, write) as session:
-                    await session.initialize()
-                    yield session
+            # Use a null error log if in quiet mode to suppress subprocess output
+            if self._quiet_mode:
+                # Open /dev/null (Unix) or nul (Windows) for writing
+                null_device = "nul" if sys.platform == "win32" else "/dev/null"
+                with open(null_device, "w") as null_file:
+                    async with stdio_client(server_params, errlog=null_file) as (
+                        read,
+                        write,
+                    ):
+                        async with ClientSession(read, write) as session:
+                            await session.initialize()
+                            yield session
+            else:
+                async with stdio_client(server_params, errlog=sys.stderr) as (
+                    read,
+                    write,
+                ):
+                    async with ClientSession(read, write) as session:
+                        await session.initialize()
+                        yield session
 
         elif transport == "http":
             if not HTTP_TRANSPORT_AVAILABLE:

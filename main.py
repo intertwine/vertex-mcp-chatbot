@@ -2,6 +2,7 @@
 """Main entry point for the Vertex MCP chatbot CLI."""
 
 import argparse
+import logging
 import sys
 
 from src.chatbot import GeminiChatbot
@@ -18,6 +19,8 @@ Examples:
   %(prog)s                             # Start Claude Agent with default model (claude-4.5-sonnet)
   %(prog)s --model claude-4-haiku       # Override the Claude model
   %(prog)s --provider gemini            # Launch the legacy Gemini REPL
+  %(prog)s --quiet-mcp                  # Start with suppressed MCP server logging
+  %(prog)s --log-level DEBUG            # Show detailed MCP debug information
         """,
     )
 
@@ -41,13 +44,43 @@ Examples:
         ),
     )
 
+    parser.add_argument(
+        "--quiet-mcp",
+        action="store_true",
+        help="Suppress MCP server info logging during tool calls",
+    )
+
+    parser.add_argument(
+        "--log-level",
+        choices=("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"),
+        default="WARNING",
+        help="Set the logging level for MCP operations (default: WARNING)",
+    )
+
     args = parser.parse_args()
+
+    # Configure logging based on arguments
+    if args.quiet_mcp:
+        # Suppress all MCP-related logging
+        logging.getLogger("src.mcp_manager").setLevel(logging.ERROR)
+        logging.getLogger("src.claude_agent_client").setLevel(logging.ERROR)
+        logging.getLogger("src.config").setLevel(logging.ERROR)
+        logging.getLogger("src.chatbot").setLevel(logging.ERROR)
+    else:
+        # Set the requested log level for MCP modules
+        log_level = getattr(logging, args.log_level)
+        logging.getLogger("src.mcp_manager").setLevel(log_level)
+        logging.getLogger("src.claude_agent_client").setLevel(log_level)
+        logging.getLogger("src.config").setLevel(log_level)
+        logging.getLogger("src.chatbot").setLevel(log_level)
 
     try:
         if args.provider == "gemini":
-            chatbot = GeminiChatbot(model_name=args.model)
+            chatbot = GeminiChatbot(model_name=args.model, quiet_mcp=args.quiet_mcp)
         else:
-            chatbot = ClaudeAgentChatbot(model_name=args.model)
+            chatbot = ClaudeAgentChatbot(
+                model_name=args.model, quiet_mcp=args.quiet_mcp
+            )
         chatbot.run()
     except KeyboardInterrupt:
         print("\n\nExiting...")

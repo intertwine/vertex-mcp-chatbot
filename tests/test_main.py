@@ -22,6 +22,8 @@ class TestMain:
         mock_args = Mock()
         mock_args.model = None
         mock_args.provider = "claude"
+        mock_args.quiet_mcp = False
+        mock_args.log_level = "WARNING"
         mock_parse_args.return_value = mock_args
 
         # Mock chatbot instance
@@ -30,7 +32,9 @@ class TestMain:
 
         main()
 
-        mock_claude_chatbot_class.assert_called_once_with(model_name=None)
+        mock_claude_chatbot_class.assert_called_once_with(
+            model_name=None, quiet_mcp=False
+        )
         mock_gemini_chatbot_class.assert_not_called()
         mock_chatbot.run.assert_called_once()
 
@@ -45,6 +49,8 @@ class TestMain:
         mock_args = Mock()
         mock_args.model = "claude-4-haiku"
         mock_args.provider = "claude"
+        mock_args.quiet_mcp = False
+        mock_args.log_level = "WARNING"
         mock_parse_args.return_value = mock_args
 
         # Mock chatbot instance
@@ -53,7 +59,9 @@ class TestMain:
 
         main()
 
-        mock_claude_chatbot_class.assert_called_once_with(model_name="claude-4-haiku")
+        mock_claude_chatbot_class.assert_called_once_with(
+            model_name="claude-4-haiku", quiet_mcp=False
+        )
         mock_gemini_chatbot_class.assert_not_called()
         mock_chatbot.run.assert_called_once()
 
@@ -155,6 +163,8 @@ class TestMain:
         mock_args = Mock()
         mock_args.model = "gemini-2.0-flash"
         mock_args.provider = "gemini"
+        mock_args.quiet_mcp = False
+        mock_args.log_level = "WARNING"
         mock_parse_args.return_value = mock_args
 
         mock_gemini_instance = Mock()
@@ -162,7 +172,9 @@ class TestMain:
 
         main()
 
-        mock_gemini_chatbot_class.assert_called_once_with(model_name="gemini-2.0-flash")
+        mock_gemini_chatbot_class.assert_called_once_with(
+            model_name="gemini-2.0-flash", quiet_mcp=False
+        )
         mock_gemini_instance.run.assert_called_once()
         mock_claude_chatbot_class.assert_not_called()
 
@@ -180,7 +192,7 @@ class TestMain:
                     main()
 
                     mock_claude_chatbot_class.assert_called_once_with(
-                        model_name="claude-4-haiku"
+                        model_name="claude-4-haiku", quiet_mcp=False
                     )
                     mock_gemini_chatbot_class.assert_not_called()
 
@@ -202,5 +214,7 @@ class TestMain:
                     main()
 
                     # Should be called with None when no model specified
-                    mock_claude_chatbot_class.assert_called_once_with(model_name=None)
+                    mock_claude_chatbot_class.assert_called_once_with(
+                        model_name=None, quiet_mcp=False
+                    )
                     mock_gemini_chatbot_class.assert_not_called()

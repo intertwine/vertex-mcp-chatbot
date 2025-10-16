@@ -37,12 +37,18 @@ except ImportError:
 class GeminiChatbot:
     """Interactive chatbot using Gemini model."""
 
-    def __init__(self, model_name: Optional[str] = None):
-        """Initialize the chatbot."""
+    def __init__(self, model_name: Optional[str] = None, quiet_mcp: bool = False):
+        """Initialize the chatbot.
+
+        Args:
+            model_name: The name of the model to use.
+            quiet_mcp: If True, suppress MCP server subprocess output.
+        """
         self.console = Console()
         self.client = None
         self.model_name = model_name
         self.mcp_manager = None
+        self.quiet_mcp = quiet_mcp
 
         # Create .chat directory if it doesn't exist
         self.chat_dir = ".chat"
@@ -64,7 +70,7 @@ class GeminiChatbot:
             if MCP_AVAILABLE:
                 try:
                     mcp_config = MCPConfig()
-                    self.mcp_manager = MCPManager(mcp_config)
+                    self.mcp_manager = MCPManager(mcp_config, quiet_mode=self.quiet_mcp)
                     self.mcp_manager.initialize_sync()
                     self.console.print("[dim]MCP support enabled[/dim]")
                 except Exception as e:

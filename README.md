@@ -48,7 +48,7 @@ nano .env             # or use your preferred editor
 
 # 3. Authenticate and run
 make auth             # Authenticate with Google Cloud
-make run              # Start the chatbot!
+make run              # Start the chatbot with quiet MCP logging!
 ```
 
 For all available commands, run:
@@ -114,15 +114,21 @@ make run
 
 **Use Claude (default)**:
 ```bash
-make run              # Uses Claude Sonnet 4.5
-make run-claude       # Same as above
-make run-opus         # Uses Claude Opus 4.1
+make run              # Uses Claude Sonnet 4.5 (quiet MCP logging)
+make run-claude       # Same as above (quiet MCP logging)
+make run-opus         # Uses Claude Opus 4.1 (quiet MCP logging)
 ```
 
 **Use Gemini**:
 ```bash
-make run-gemini       # Uses Gemini 2.5 Flash
-make run-gemini-pro   # Uses Gemini 2.5 Pro
+make run-gemini       # Uses Gemini 2.5 Flash (quiet MCP logging)
+make run-gemini-pro   # Uses Gemini 2.5 Pro (quiet MCP logging)
+```
+
+**With verbose logging**:
+```bash
+make run-verbose      # Claude with INFO-level MCP logging
+make run-debug        # Claude with DEBUG-level MCP logging
 ```
 
 **Alternative (direct uv commands)**:
@@ -131,6 +137,11 @@ uv run main.py                    # Claude Sonnet 4.5 (default)
 uv run main.py --model claude-opus-4-1-20250805  # Claude Opus
 uv run main.py --provider gemini  # Gemini 2.5 Flash
 uv run main.py --provider gemini --model gemini-2.5-pro  # Gemini 2.5 Pro
+
+# Logging control options
+uv run main.py --quiet-mcp        # Suppress MCP server info logging
+uv run main.py --log-level DEBUG  # Show detailed MCP debug information
+uv run main.py --log-level ERROR  # Only show errors from MCP operations
 ```
 
 **Key Differences**:
@@ -181,6 +192,32 @@ Claude automatically:
 - Formatted them into a helpful response
 
 No explicit tool invocation needed - Claude autonomously chooses when and how to use tools!
+
+### Controlling MCP Logging
+
+**Note**: The default `make run` targets now use `--quiet-mcp` for cleaner output. Use `make run-verbose` or `make run-debug` if you need more detailed logging.
+
+The chatbot provides options to control the verbosity of MCP server logging:
+
+**Suppress MCP logging (quiet mode):**
+```bash
+uv run main.py --quiet-mcp
+```
+This suppresses all informational logging from MCP operations, showing only errors.
+
+**Adjust logging level:**
+```bash
+uv run main.py --log-level DEBUG    # Show detailed debug information
+uv run main.py --log-level INFO     # Show informational messages
+uv run main.py --log-level WARNING  # Default - show warnings and above
+uv run main.py --log-level ERROR    # Show only errors
+uv run main.py --log-level CRITICAL # Show only critical errors
+```
+
+These options are useful when:
+- You want a cleaner output during tool execution (`--quiet-mcp`)
+- You're debugging MCP server connections (`--log-level DEBUG`)
+- You only care about errors (`--log-level ERROR`)
 
 ### Scrollable Content
 

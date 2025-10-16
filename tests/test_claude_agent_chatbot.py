@@ -192,7 +192,7 @@ class TestClaudeAgentChatbot:
         chatbot.initialize()
 
         # Verify MCP manager was created and initialized
-        mock_manager_class.assert_called_once_with(mock_config)
+        mock_manager_class.assert_called_once_with(mock_config, quiet_mode=False)
         mock_manager.initialize_sync.assert_called_once()
 
         # Verify client received the MCP manager

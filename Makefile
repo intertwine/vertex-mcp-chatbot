@@ -14,11 +14,13 @@ help:
 	@echo "  make auth            - Authenticate with Google Cloud"
 	@echo ""
 	@echo "Running the Chatbot:"
-	@echo "  make run             - Run the chatbot with Claude (default)"
-	@echo "  make run-claude      - Run with Claude Sonnet 4.5"
-	@echo "  make run-opus        - Run with Claude Opus 4.1"
-	@echo "  make run-gemini      - Run with Gemini 2.5 Flash"
-	@echo "  make run-gemini-pro  - Run with Gemini 2.5 Pro"
+	@echo "  make run             - Run the chatbot with Claude (quiet MCP logging)"
+	@echo "  make run-claude      - Run with Claude Sonnet 4.5 (quiet MCP logging)"
+	@echo "  make run-opus        - Run with Claude Opus 4.1 (quiet MCP logging)"
+	@echo "  make run-gemini      - Run with Gemini 2.5 Flash (quiet MCP logging)"
+	@echo "  make run-gemini-pro  - Run with Gemini 2.5 Pro (quiet MCP logging)"
+	@echo "  make run-verbose     - Run with Claude and verbose MCP logging"
+	@echo "  make run-debug       - Run with Claude and debug-level logging"
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test            - Run all tests"
@@ -84,23 +86,31 @@ auth:
 # Running the Chatbot targets
 .PHONY: run
 run:
-	uv run main.py
+	uv run main.py --quiet-mcp
 
 .PHONY: run-claude
 run-claude:
-	uv run main.py
+	uv run main.py --quiet-mcp
 
 .PHONY: run-opus
 run-opus:
-	uv run main.py --model claude-opus-4-1-20250805
+	uv run main.py --model claude-opus-4-1-20250805 --quiet-mcp
 
 .PHONY: run-gemini
 run-gemini:
-	uv run main.py --provider gemini
+	uv run main.py --provider gemini --quiet-mcp
 
 .PHONY: run-gemini-pro
 run-gemini-pro:
-	uv run main.py --provider gemini --model gemini-2.5-pro
+	uv run main.py --provider gemini --model gemini-2.5-pro --quiet-mcp
+
+.PHONY: run-verbose
+run-verbose:
+	uv run main.py --log-level INFO
+
+.PHONY: run-debug
+run-debug:
+	uv run main.py --log-level DEBUG
 
 # Testing targets
 .PHONY: test

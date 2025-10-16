@@ -37,12 +37,14 @@ class ClaudeAgentChatbot:
         system_prompt: Optional[str] = None,
         sdk_client=None,
         mcp_config: Optional[MCPConfig] = None,
+        quiet_mcp: bool = False,
     ) -> None:
         self.console = Console()
         self.model_name = model_name
         self.system_prompt = system_prompt
         self._sdk_client = sdk_client
         self._mcp_config = mcp_config
+        self.quiet_mcp = quiet_mcp
         self.client: Optional[ClaudeAgentClient] = None
         self.history: List[dict] = []
         self.mcp_manager: Optional["MCPManager"] = None
@@ -77,7 +79,7 @@ class ClaudeAgentChatbot:
             try:
                 if config is None:
                     config = MCPConfig()
-                self.mcp_manager = MCPManager(config)
+                self.mcp_manager = MCPManager(config, quiet_mode=self.quiet_mcp)
                 self.mcp_manager.initialize_sync()
                 self.console.print("[dim]MCP support enabled[/dim]")
             except Exception as e:
