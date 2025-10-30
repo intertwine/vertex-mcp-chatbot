@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/intertwine-vertex-mcp-chatbot-badge.png)](https://mseep.ai/app/intertwine-vertex-mcp-chatbot)
+
 # Vertex MCP Chatbot
 
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org)
