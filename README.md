@@ -52,6 +52,7 @@ make run              # Start the chatbot with quiet MCP logging!
 ```
 
 For all available commands, run:
+
 ```bash
 make help
 ```
@@ -66,30 +67,37 @@ make help
 ## Installation
 
 1. Clone this repository:
+
 ```bash
 git clone https://github.com/intertwine/vertex-mcp-chatbot.git
 cd vertex-mcp-chatbot
 ```
 
-2. Run the quick setup (installs dependencies and creates .env file):
+1. Run the quick setup (installs dependencies and creates .env file):
+
 ```bash
 make setup
 ```
+
 > This runs `uv sync` and copies `.env.example` to `.env`
 
-3. Edit `.env` to override default project settings:
+1. Edit `.env` to override default project settings:
+
 ```bash
 GOOGLE_CLOUD_PROJECT='your-gcp-project-id'
 GOOGLE_CLOUD_LOCATION='us-east1'
 ```
 
-4. Authenticate with Google Cloud:
+1. Authenticate with Google Cloud:
+
 ```bash
 make auth
 ```
+
 > This runs `gcloud auth application-default login`
 
 **Alternative manual setup:**
+
 ```bash
 # Install dependencies manually
 uv sync
@@ -106,6 +114,7 @@ gcloud auth application-default login
 ### Basic Usage
 
 Start the chatbot with the default provider (Claude):
+
 ```bash
 make run
 ```
@@ -113,28 +122,34 @@ make run
 ### Choosing Your AI Provider
 
 **Use Claude (default)**:
+
 ```bash
 make run              # Uses Claude Sonnet 4.5 (quiet MCP logging)
 make run-claude       # Same as above (quiet MCP logging)
 make run-opus         # Uses Claude Opus 4.1 (quiet MCP logging)
+make run-haiku        # Uses Claude Haiku 4.5 (quiet MCP logging)
 ```
 
 **Use Gemini**:
+
 ```bash
 make run-gemini       # Uses Gemini 2.5 Flash (quiet MCP logging)
 make run-gemini-pro   # Uses Gemini 2.5 Pro (quiet MCP logging)
 ```
 
 **With verbose logging**:
+
 ```bash
 make run-verbose      # Claude with INFO-level MCP logging
 make run-debug        # Claude with DEBUG-level MCP logging
 ```
 
 **Alternative (direct uv commands)**:
+
 ```bash
 uv run main.py                    # Claude Sonnet 4.5 (default)
 uv run main.py --model claude-opus-4-1-20250805  # Claude Opus
+uv run main.py --model claude-haiku-4-5           # Claude Haiku 4.5
 uv run main.py --provider gemini  # Gemini 2.5 Flash
 uv run main.py --provider gemini --model gemini-2.5-pro  # Gemini 2.5 Pro
 
@@ -145,6 +160,7 @@ uv run main.py --log-level ERROR  # Only show errors from MCP operations
 ```
 
 **Key Differences**:
+
 - **Claude**: Full MCP tool-calling support with autonomous tool discovery and execution
 - **Gemini**: Fast, efficient responses; MCP servers can be configured but tool calling is manual
 
@@ -167,11 +183,11 @@ See [docs/claude-agent.md](docs/claude-agent.md) for an end-to-end walkthrough t
 
 To use MCP features, create an `mcp_config.json` file in the project root. See the [MCP User Guide](docs/mcp-guide.md) for detailed configuration instructions and examples.
 
-**Example: Autonomous Tool Usage**
+#### Example: Autonomous Tool Usage
 
 When you connect to an MCP server, Claude automatically sees available tools and can use them during conversations:
 
-```
+```text
 You > /mcp connect filesystem
 ✅ Connected to MCP server: filesystem
 
@@ -186,6 +202,7 @@ Claude: The current directory contains the following files:
 ```
 
 Claude automatically:
+
 - Discovered the `list_files` tool from the connected MCP server
 - Decided to call it with appropriate parameters
 - Received and processed the results
@@ -200,12 +217,15 @@ No explicit tool invocation needed - Claude autonomously chooses when and how to
 The chatbot provides options to control the verbosity of MCP server logging:
 
 **Suppress MCP logging (quiet mode):**
+
 ```bash
 uv run main.py --quiet-mcp
 ```
+
 This suppresses all informational logging from MCP operations, showing only errors.
 
 **Adjust logging level:**
+
 ```bash
 uv run main.py --log-level DEBUG    # Show detailed debug information
 uv run main.py --log-level INFO     # Show informational messages
@@ -215,6 +235,7 @@ uv run main.py --log-level CRITICAL # Show only critical errors
 ```
 
 These options are useful when:
+
 - You want a cleaner output during tool execution (`--quiet-mcp`)
 - You're debugging MCP server connections (`--log-level DEBUG`)
 - You only care about errors (`--log-level ERROR`)
@@ -224,12 +245,14 @@ These options are useful when:
 When responses or content are too long for your terminal, the chatbot automatically switches to a scrollable view:
 
 **Navigation Controls:**
+
 - **↑/↓** or **j/k** - Scroll up/down line by line
 - **Home/g** - Jump to the top of the content
 - **End/G** - Jump to the bottom of the content
 - **q/Esc** - Exit scrollable view and return to chat
 
 **Features:**
+
 - Automatically detects when content exceeds terminal height
 - Works for:
   - LLM responses
@@ -251,6 +274,7 @@ While chatting, you can use these commands:
 - `/quit` - Exit the chatbot
 
 **MCP Commands** (when MCP is available):
+
 - `/mcp connect <server>` - Connect to an MCP server from your config
 - `/mcp list` - Show configured servers and their connection status
 - `/mcp disconnect <server>` - Disconnect from an MCP server
@@ -279,7 +303,8 @@ MCP resources are automatically read when you reference them by URI in your mess
 - **Standard URI Format**: Use standard URIs like `file:///path/to/data.json` or `http://example.com/api/data`
 
 **Example:**
-```
+
+```text
 You> Can you analyze the data in file:///home/user/sales_report.csv?
 
 [The chatbot automatically reads the CSV file and includes its content in the prompt to Claude,
@@ -296,7 +321,8 @@ MCP servers can provide prompt templates that help structure interactions for sp
 - **Seamless Processing**: Filled templates are sent directly to Claude for processing
 
 **Example:**
-```
+
+```text
 You> /mcp prompts
 Available prompts from code-analyzer:
   - analyze_function: Analyze a function for complexity and suggest improvements
@@ -313,7 +339,7 @@ a detailed analysis of the function based on the structured prompt]
 
 ### Example Session
 
-```
+```text
 🚀 Starting Claude Agent REPL...
 ✅ Ready!
 
@@ -352,7 +378,7 @@ You> /quit
 👋 Goodbye!
 ```
 
-## MCP Configuration
+## MCP Configuration (docs/mcp-guide.md)
 
 ### Basic Configuration
 
@@ -479,7 +505,7 @@ See [examples/README.md](examples/README.md) for detailed setup instructions.
 
 ## Project Structure
 
-```
+```text
 vertex-mcp-chatbot/
 ├── main.py              # Entry point
 ├── pyproject.toml       # Python project configuration and dependencies
@@ -537,6 +563,7 @@ The application uses the following configuration (can be modified in `src/config
 ### "Failed to start Claude Agent REPL"
 
 Make sure you've:
+
 1. Authenticated with Google Cloud: `gcloud auth application-default login`
 2. Enabled the Vertex AI API and Anthropic publisher access for your project/region
 3. Granted the `Vertex AI User` role to the identity running the CLI
@@ -545,6 +572,7 @@ Make sure you've:
 ### "Unable to refresh Google credentials"
 
 Check that:
+
 1. ADC credentials are active (`gcloud auth application-default login` or service account JSON)
 2. The `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` values match your deployment
 3. The executing user/service account has billing enabled for the project
@@ -561,6 +589,7 @@ This project includes a comprehensive test suite with 190+ tests covering all fu
 ### Running Tests
 
 **Quick test run:**
+
 ```bash
 # Install dev dependencies (includes pytest-cov for coverage)
 make install-dev
@@ -570,6 +599,7 @@ make test
 ```
 
 **Testing commands:**
+
 ```bash
 make test             # Run all tests with pytest
 make test-v           # Run tests with verbose output
@@ -579,6 +609,7 @@ make test-int         # Run only integration tests
 ```
 
 **Example MCP Server Tests:**
+
 ```bash
 make test-examples    # Run all example server tests
 make test-examples-v  # Run with verbose output
@@ -589,6 +620,7 @@ make server-check     # Check server health
 ```
 
 **Alternative (direct uv commands):**
+
 ```bash
 # Run all tests
 uv run pytest tests/ -v
@@ -606,6 +638,7 @@ uv run python scripts/run_example_tests.py --weather
 ### Test Categories
 
 **Unit Tests:**
+
 - `test_config.py` - Configuration management (6 tests)
 - `test_claude_agent_client.py` - Claude Agent client helper (6 tests)
 - `test_claude_agent_chatbot.py` - Claude REPL commands and history (7 tests)
@@ -614,6 +647,7 @@ uv run python scripts/run_example_tests.py --weather
 - `test_main.py` - Main entry point and CLI (8 tests)
 
 **MCP Framework Tests:**
+
 - `test_mcp_manager.py` - MCP client management (25+ tests)
 - `test_mcp_config.py` - MCP configuration handling (15+ tests)
 - `test_mcp_http_transport.py` - HTTP/SSE transport tests (20+ tests)
@@ -622,15 +656,18 @@ uv run python scripts/run_example_tests.py --weather
 - `test_mcp_retry.py` - Connection retry logic (10+ tests)
 
 **Example Server Tests:**
+
 - `test_filesystem_server.py` - Filesystem MCP server (44 tests)
 - `test_weather_server.py` - Weather MCP server (39 tests)
 
 **Integration Tests:**
+
 - `test_integration.py` - Full system integration scenarios
 
 ### Test Coverage
 
 The test suite covers:
+
 - ✅ **Configuration**: Environment variables, defaults, static methods
 - ✅ **Claude Agent**: Session lifecycle management, MCP registration, command handling
 - ✅ **Chatbot UI**: Commands, history, display formatting, input validation
@@ -662,6 +699,7 @@ The test suite covers:
 To extend or modify the chatbot:
 
 ### Architecture
+
 1. **`ClaudeAgentClient`** (`src/claude_agent_client.py`) - Creates Claude agents/sessions and sends messages
 2. **`ClaudeAgentChatbot`** (`src/claude_agent_chatbot.py`) - Terminal UI that wraps the Claude Agent SDK
 3. **`Config`** (`src/config.py`) - Centralised configuration management for Claude and Gemini helpers
@@ -669,12 +707,14 @@ To extend or modify the chatbot:
 5. **Legacy Gemini modules** (`src/gemini_client.py`, `src/chatbot.py`) - Retained for backwards compatibility and tests
 
 ### Adding New Features
+
 1. **New Commands**: Extend `ClaudeAgentChatbot.handle_command` for CLI additions
 2. **Model Parameters**: Modify settings in the `Config` class
 3. **API Features**: Add helpers to `ClaudeAgentClient` (or the fallback stub) for advanced SDK usage
 4. **UI Enhancements**: Update rendering helpers in `ClaudeAgentChatbot`
 
 ### Development Workflow
+
 ```bash
 # Set up development environment
 make dev-setup        # Installs deps + pre-commit hooks
@@ -699,6 +739,7 @@ make clean-all        # Remove cache + virtual environment
 ```
 
 **Alternative (direct uv commands):**
+
 ```bash
 uv sync --extra dev
 uv run pre-commit install
@@ -709,7 +750,9 @@ uv run flake8 src/ tests/
 ```
 
 ### Writing Tests
+
 When adding new functionality:
+
 1. Add unit tests for individual methods/functions
 2. Add integration tests for feature workflows
 3. Use the fixtures in `tests/conftest.py` for common mocking

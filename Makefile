@@ -17,6 +17,7 @@ help:
 	@echo "  make run             - Run the chatbot with Claude (quiet MCP logging)"
 	@echo "  make run-claude      - Run with Claude Sonnet 4.5 (quiet MCP logging)"
 	@echo "  make run-opus        - Run with Claude Opus 4.1 (quiet MCP logging)"
+	@echo "  make run-haiku       - Run with Claude Haiku 4.5 (quiet MCP logging)"
 	@echo "  make run-gemini      - Run with Gemini 2.5 Flash (quiet MCP logging)"
 	@echo "  make run-gemini-pro  - Run with Gemini 2.5 Pro (quiet MCP logging)"
 	@echo "  make run-verbose     - Run with Claude and verbose MCP logging"
@@ -95,6 +96,10 @@ run-claude:
 .PHONY: run-opus
 run-opus:
 	uv run main.py --model claude-opus-4-1-20250805 --quiet-mcp
+
+.PHONY: run-haiku
+run-haiku:
+	uv run main.py --model claude-haiku-4-5 --quiet-mcp
 
 .PHONY: run-gemini
 run-gemini:
